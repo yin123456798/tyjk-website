@@ -1,0 +1,3636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目管理 - 天涯极客社团</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js"></script>
+    <script src="./storage-config.js"></script>
+    <style>
+        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .btn-primary { @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg; }
+        .btn-secondary { @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg; }
+        .btn-success { @apply bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg; }
+        .status-pending { @apply bg-yellow-100 text-yellow-800; }
+        .status-approved { @apply bg-green-100 text-green-800; }
+        .status-rejected { @apply bg-red-100 text-red-800; }
+        .status-awarded { @apply bg-purple-100 text-purple-800; }
+        
+        /* 项目卡片样式 */
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* 悬停动画效果 */
+        .group:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-white/80 backdrop-blur-sm shadow-sm border-b border-white/20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold text-gray-900">项目管理中心</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="./profile.html" class="btn-secondary">
+                        <i class="fas fa-user mr-2"></i>个人中心
+                    </a>
+                    <a href="./index.html" class="btn-secondary">
+                        <i class="fas fa-home mr-2"></i>返回首页
+                    </a>
+                    <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg">
+                        <i class="fas fa-sign-out-alt mr-2"></i>退出登录
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 用户信息卡片 -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 card-shadow border border-white/20 mb-8">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900" id="user-name">加载中...</h2>
+                        <p class="text-gray-600" id="user-email">加载中...</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-600">用户状态</p>
+                    <p class="text-lg font-semibold text-green-600" id="user-status">内部用户</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计概览 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 card-shadow border border-white/20">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-lg">
+                        <i class="fas fa-project-diagram text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">总项目数</p>
+                        <p class="text-2xl font-bold text-gray-900" id="total-projects">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 card-shadow border border-white/20">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-lg">
+                        <i class="fas fa-crown text-green-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">我创建的项目</p>
+                        <p class="text-2xl font-bold text-gray-900" id="approved-projects">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 card-shadow border border-white/20">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-lg">
+                        <i class="fas fa-users text-yellow-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">我参与的项目</p>
+                        <p class="text-2xl font-bold text-gray-900" id="pending-projects">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 card-shadow border border-white/20">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-lg">
+                        <i class="fas fa-check-circle text-purple-600 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">活跃项目</p>
+                        <p class="text-2xl font-bold text-gray-900" id="awarded-projects">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 card-shadow border border-white/20 mb-8">
+            <div class="flex flex-wrap gap-4">
+                <button onclick="showSubmitProjectModal()" class="btn-primary">
+                    <i class="fas fa-plus mr-2"></i>添加新项目
+                </button>
+                <button onclick="showAwardModal()" class="btn-success">
+                    <i class="fas fa-trophy mr-2"></i>申请奖项
+                </button>
+                <button onclick="showAwardStatistics()" class="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                    <i class="fas fa-chart-bar mr-2"></i>奖励统计
+                </button>
+                <button onclick="refreshData()" class="btn-secondary">
+                    <i class="fas fa-sync-alt mr-2"></i>刷新数据
+                </button>
+            </div>
+        </div>
+
+        <!-- 项目列表 -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 card-shadow border border-white/20 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">我的项目</h3>
+                <button onclick="refreshData()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                    <i class="fas fa-refresh mr-2"></i>刷新
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="projects-container">
+                <div class="flex items-center justify-center py-8 col-span-full">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span class="ml-3 text-gray-600">加载项目数据...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 奖励统计界面 -->
+        <div id="award-statistics-section" class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 card-shadow border border-white/20 mb-8 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">奖励统计</h3>
+                <div class="flex items-center space-x-2">
+                    <button onclick="refreshAwardStatistics()" class="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700">
+                        <i class="fas fa-refresh mr-2"></i>刷新
+                    </button>
+                    <button onclick="hideAwardStatistics()" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                        <i class="fas fa-times mr-2"></i>关闭
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 奖励统计概览 -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl p-4 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">总申请数</p>
+                            <p class="text-2xl font-bold" id="total-awards">0</p>
+                        </div>
+                        <i class="fas fa-trophy text-2xl opacity-80"></i>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-green-400 to-teal-500 rounded-xl p-4 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">国家级</p>
+                            <p class="text-2xl font-bold" id="national-awards">0</p>
+                        </div>
+                        <i class="fas fa-medal text-2xl opacity-80"></i>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-blue-400 to-indigo-500 rounded-xl p-4 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">省级</p>
+                            <p class="text-2xl font-bold" id="provincial-awards">0</p>
+                        </div>
+                        <i class="fas fa-award text-2xl opacity-80"></i>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-purple-400 to-pink-500 rounded-xl p-4 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">校级</p>
+                            <p class="text-2xl font-bold" id="school-awards">0</p>
+                        </div>
+                        <i class="fas fa-star text-2xl opacity-80"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 奖励项目列表 -->
+            <div class="overflow-x-auto">
+                <table class="w-full bg-white rounded-lg shadow-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">项目信息</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">奖项信息</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">证书状态</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">申请时间</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="award-projects-container" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center">
+                                <div class="flex items-center justify-center">
+                                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
+                                    <span class="ml-3 text-gray-600">加载奖励数据...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 消息通知板块 -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 card-shadow border border-white/20">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">消息通知</h3>
+                <div class="flex items-center space-x-2">
+                    <span id="unread-count" class="bg-red-500 text-white text-xs px-2 py-1 rounded-full hidden">0</span>
+                    <button onclick="markAllAsRead()" class="text-sm text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-check-double mr-1"></i>全部标记为已读
+                    </button>
+                </div>
+            </div>
+            <div id="messages-container">
+                <div class="flex items-center justify-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span class="ml-3 text-gray-600">加载消息数据...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提交项目模态框 -->
+    <div id="submit-project-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-white/20">
+                <!-- 模态框头部 -->
+                <div class="sticky top-0 bg-white/80 backdrop-blur-sm rounded-t-3xl p-6 border-b border-gray-100">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-plus text-white text-lg"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-900">添加新项目</h3>
+                                <p class="text-sm text-gray-600">创建您的项目并邀请团队成员</p>
+                            </div>
+                        </div>
+                        <button onclick="hideSubmitProjectModal()" class="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-colors">
+                            <i class="fas fa-times text-gray-600"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 模态框内容 -->
+                <div class="p-6">
+                    <form id="project-form" onsubmit="submitProject(event)">
+                        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                            <!-- 左侧：基本信息 -->
+                            <div class="space-y-4">
+                                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                                    <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                        <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                                        基本信息
+                                    </h4>
+                                    
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                                项目名称 <span class="text-red-500">*</span>
+                                            </label>
+                                            <input type="text" name="name" required 
+                                                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all" 
+                                                placeholder="请输入项目名称">
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                                项目简介 <span class="text-red-500">*</span>
+                                            </label>
+                                            <textarea name="description" rows="4" 
+                                                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all resize-none" 
+                                                placeholder="请详细描述您的项目内容、目标和技术栈..." required></textarea>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                                项目类别
+                                            </label>
+                                            <input type="text" name="category" 
+                                                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all" 
+                                                placeholder="如：Web开发、移动应用、AI项目等">
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                                项目负责人 <span class="text-red-500">*</span>
+                                            </label>
+                                            <select name="owner_id" required 
+                                                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all" 
+                                                id="owner-select">
+                                                <option value="">请选择项目负责人...</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 右侧：成员邀请和文件上传 -->
+                            <div class="space-y-4">
+                                <!-- 项目成员邀请 -->
+                                <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100 shadow-lg">
+                                    <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                        <i class="fas fa-users text-green-600 mr-2"></i>
+                                        邀请项目成员
+                                    </h4>
+                                    
+                                    <div class="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-green-200 shadow-md">
+                                                                                 <div class="flex flex-col lg:flex-row items-start lg:items-center space-y-3 lg:space-y-0 lg:space-x-3 mb-6">
+                                             <select id="member-select" 
+                                                 class="flex-1 border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all bg-white/80 text-xs">
+                                                 <option value="">请选择要邀请的用户...</option>
+                                             </select>
+                                             <select id="member-role" 
+                                                 class="border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all bg-white/80 min-w-[100px] text-xs">
+                                                 <option value="member">成员</option>
+                                                 <option value="manager">管理员</option>
+                                             </select>
+                                             <button type="button" onclick="addMemberToInviteList()" 
+                                                 class="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg flex items-center justify-center transition-all shadow-md hover:shadow-lg transform hover:scale-105">
+                                                 <i class="fas fa-plus text-sm"></i>
+                                             </button>
+                                         </div>
+                                        <div id="invite-members-list" class="space-y-4">
+                                            <!-- 已选择的邀请成员将在这里显示 -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 文件上传 -->
+                                <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
+                                    <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                        <i class="fas fa-paperclip text-purple-600 mr-2"></i>
+                                        项目文件
+                                    </h4>
+                                    
+                                    <div class="space-y-4">
+                                        <div class="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-purple-200 shadow-sm hover:shadow-md transition-all">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-4">
+                                                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                                                        <i class="fas fa-image text-white text-lg"></i>
+                                                    </div>
+                                                    <div>
+                                                        <p class="font-semibold text-gray-900">项目图片</p>
+                                                        <p class="text-sm text-gray-600">支持 JPG、PNG、GIF 格式</p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" onclick="selectAndUploadProjectFile('image')" 
+                                                    class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg transform hover:scale-105">
+                                                    <i class="fas fa-upload mr-2"></i>上传
+                                                </button>
+                                            </div>
+                                            <div id="project-image-url" class="mt-3 text-sm text-green-600 font-medium"></div>
+                                            <input type="hidden" id="hidden-image-url" name="image_url">
+                                        </div>
+                                        
+                                        <div class="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-purple-200 shadow-sm hover:shadow-md transition-all">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-4">
+                                                    <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+                                                        <i class="fas fa-file-alt text-white text-lg"></i>
+                                                    </div>
+                                                    <div>
+                                                        <p class="font-semibold text-gray-900">简介文档</p>
+                                                        <p class="text-sm text-gray-600">支持 PDF、DOC、DOCX 格式</p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" onclick="selectAndUploadProjectFile('doc')" 
+                                                    class="px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg transform hover:scale-105">
+                                                    <i class="fas fa-upload mr-2"></i>上传
+                                                </button>
+                                            </div>
+                                            <div id="project-doc-url" class="mt-3 text-sm text-green-600 font-medium"></div>
+                                            <input type="hidden" id="hidden-doc-url" name="doc_url">
+                                        </div>
+                                        
+                                        <div class="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-purple-200 shadow-sm hover:shadow-md transition-all">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-4">
+                                                    <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                                                        <i class="fas fa-file-powerpoint text-white text-lg"></i>
+                                                    </div>
+                                                    <div>
+                                                        <p class="font-semibold text-gray-900">演示PPT</p>
+                                                        <p class="text-sm text-gray-600">支持 PPT、PPTX 格式</p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" onclick="selectAndUploadProjectFile('ppt')" 
+                                                    class="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg transform hover:scale-105">
+                                                    <i class="fas fa-upload mr-2"></i>上传
+                                                </button>
+                                            </div>
+                                            <div id="project-ppt-url" class="mt-3 text-sm text-green-600 font-medium"></div>
+                                            <input type="hidden" id="hidden-ppt-url" name="ppt_url">
+                                        </div>
+                                        
+                                        <div class="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-purple-200 shadow-sm hover:shadow-md transition-all">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-4">
+                                                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                                                        <i class="fas fa-paperclip text-white text-lg"></i>
+                                                    </div>
+                                                    <div>
+                                                        <p class="font-semibold text-gray-900">其他附件</p>
+                                                        <p class="text-sm text-gray-600">支持 ZIP、RAR 等压缩包</p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" onclick="selectAndUploadProjectFile('other')" 
+                                                    class="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg transform hover:scale-105">
+                                                    <i class="fas fa-upload mr-2"></i>上传
+                                                </button>
+                                            </div>
+                                            <div id="project-other-url" class="mt-3 text-sm text-green-600 font-medium"></div>
+                                            <input type="hidden" id="hidden-other-url" name="other_attachment_url">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 底部按钮 -->
+                        <div class="sticky bottom-0 bg-white/80 backdrop-blur-sm rounded-b-3xl p-6 border-t border-gray-100 mt-8">
+                            <div class="flex justify-between items-center">
+                                <div class="text-sm text-gray-600">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    带 <span class="text-red-500">*</span> 的字段为必填项
+                                </div>
+                                <div class="flex space-x-4">
+                                    <button type="button" onclick="hideSubmitProjectModal()" 
+                                        class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors">
+                                        <i class="fas fa-times mr-2"></i>取消
+                                    </button>
+                                    <button type="submit" 
+                                        class="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-xl transition-all transform hover:scale-105">
+                                        <i class="fas fa-plus mr-2"></i><span>创建项目</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 申请奖项模态框 -->
+    <div id="award-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-semibold text-gray-900">申请奖项</h3>
+                    <button onclick="hideAwardModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <form id="award-form" onsubmit="submitAward(event)">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">选择项目</label>
+                            <select name="project_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2" id="award-project-select">
+                                <option value="">请选择项目</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">奖项级别</label>
+                            <select name="award_level" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                <option value="">请选择奖项级别</option>
+                                <option value="national">国家级</option>
+                                <option value="provincial">省级</option>
+                                <option value="school">校级</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">奖项名称</label>
+                            <input type="text" name="award_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="请输入奖项名称">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">获奖日期</label>
+                            <input type="date" name="award_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">电子版证书图片上传 <span class="text-red-500">*</span></label>
+                            <div class="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-blue-200 shadow-sm hover:shadow-md transition-all">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                                            <i class="fas fa-certificate text-white text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-900">证书图片</p>
+                                            <p class="text-sm text-gray-600">支持 JPG、PNG 等图片格式</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="selectAndUploadCertificateImage()" 
+                                        class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg transform hover:scale-105">
+                                        <i class="fas fa-upload mr-2"></i>上传
+                                    </button>
+                                </div>
+                                <div id="certificate-image-url" class="mt-3 text-sm text-green-600 font-medium"></div>
+                                <input type="hidden" id="hidden-certificate-image-url" name="certificate_image_url" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">附件上传</label>
+                            <div class="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-purple-200 shadow-sm hover:shadow-md transition-all">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                                            <i class="fas fa-paperclip text-white text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-900">比赛过程附件</p>
+                                            <p class="text-sm text-gray-600">支持多张图片或压缩包（合影、工作照、项目产品照等）</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="selectAndUploadAwardAttachments()" 
+                                        class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg transform hover:scale-105">
+                                        <i class="fas fa-upload mr-2"></i>上传
+                                    </button>
+                                </div>
+                                <div id="award-attachments-list" class="mt-3 space-y-2"></div>
+                                <input type="hidden" id="hidden-award-attachments-url" name="award_attachments_url">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-4 mt-6">
+                        <button type="button" onclick="hideAwardModal()" class="btn-secondary">取消</button>
+                        <button type="submit" class="btn-success">申请奖项</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示框 -->
+    <div class="fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 flex items-center z-50" id="toast">
+        <i class="mr-2" id="toastIcon"></i>
+        <span id="toastMessage">提示消息</span>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let projects = [];
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initializePage();
+            
+            // 添加全局调试函数
+            window.debugEditProject = function(projectId) {
+                console.log('=== 调试编辑项目 ===');
+                console.log('项目ID:', projectId);
+                console.log('当前用户:', currentUser);
+                console.log('项目列表:', projects);
+                console.log('编辑模式:', isEditMode);
+                console.log('编辑项目ID:', editingProjectId);
+                
+                const project = projects.find(p => p.id === projectId);
+                console.log('找到的项目:', project);
+                
+                if (project) {
+                    console.log('项目负责人ID:', project.owner_id);
+                    console.log('当前用户ID:', currentUser.id);
+                    console.log('是否匹配:', project.owner_id === currentUser.id);
+                }
+            };
+            
+
+        });
+
+        // 全局测试函数
+        window.testEditFunction = function() {
+            console.log('=== 测试编辑功能 ===');
+            console.log('当前用户:', currentUser);
+            console.log('项目列表:', projects);
+            console.log('全局变量状态:', {
+                isEditMode: window.isEditMode,
+                editingProjectId: window.editingProjectId
+            });
+            
+            if (projects && projects.length > 0) {
+                const firstProject = projects[0];
+                console.log('测试编辑第一个项目:', firstProject);
+                console.log('项目负责人ID:', firstProject.owner_id);
+                console.log('当前用户ID:', currentUser.id);
+                console.log('是否有权限编辑:', firstProject.owner_id === currentUser.id);
+                
+                if (firstProject.owner_id === currentUser.id) {
+                    editProject(firstProject.id);
+                } else {
+                    console.log('用户没有权限编辑此项目');
+                    alert('您没有权限编辑此项目，只有项目负责人可以编辑');
+                }
+            } else {
+                console.log('没有项目可以测试');
+                alert('没有项目可以测试编辑功能');
+            }
+        };
+        
+        window.debugEditProject = function(projectId) {
+            console.log('=== 调试编辑项目 ===');
+            console.log('项目ID:', projectId);
+            console.log('当前用户:', currentUser);
+            console.log('项目列表:', projects);
+            console.log('目标项目:', projects.find(p => p.id === projectId));
+            console.log('DOM状态检查:');
+            console.log('- 模态框:', document.getElementById('submit-project-modal'));
+            console.log('- 表单:', document.getElementById('project-form'));
+            console.log('- 项目名称输入:', document.querySelector('input[name="name"]'));
+            console.log('- 项目描述输入:', document.querySelector('textarea[name="description"]'));
+            console.log('- 项目类别输入:', document.querySelector('input[name="category"]'));
+            console.log('- 负责人选择:', document.getElementById('owner-select'));
+        };
+
+        // 初始化页面
+        async function initializePage() {
+            try {
+                // 检查用户登录状态
+                const { data: { user }, error } = await window.supabase.auth.getUser();
+                if (error || !user) {
+                    alert('请先登录');
+                    window.location.href = './index.html';
+                    return;
+                }
+
+                currentUser = user;
+                console.log('当前用户:', currentUser);
+
+                // 用户已经通过邀请码验证进入此页面，无需再次检查权限
+                console.log('用户已通过邀请码验证，允许访问项目管理页面');
+
+                // 加载用户信息
+                await loadUserInfo();
+                
+                // 加载项目数据
+                await loadProjects();
+                
+                // 加载消息通知
+                await loadMessages();
+                
+                // 更新统计概览
+                updateStatistics();
+                
+                // 设置定时器，每30秒自动刷新消息
+                setInterval(async () => {
+                    await loadMessages();
+                }, 30000);
+                
+            } catch (error) {
+                console.error('初始化页面失败:', error);
+                alert('页面初始化失败，请刷新重试');
+            }
+        }
+
+        // 检查邀请码权限
+        async function checkInvitationCodeAccess() {
+            try {
+                console.log('检查邀请码权限...');
+                
+                // 首先检查用户是否有绑定的邀请码
+                const { data: userCode, error: userError } = await window.supabase
+                    .from('user_invitation_codes')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .eq('status', 'active')
+                    .gte('expires_at', new Date().toISOString())
+                    .single();
+
+                if (userCode) {
+                    console.log('用户有绑定的邀请码:', userCode);
+                    return true;
+                }
+
+                // 如果没有绑定邀请码，检查是否有通用邀请码
+                const { data: generalCode, error: generalError } = await window.supabase
+                    .from('user_invitation_codes')
+                    .select('*')
+                    .is('user_id', null)
+                    .eq('status', 'active')
+                    .gte('expires_at', new Date().toISOString())
+                    .single();
+
+                if (generalCode) {
+                    console.log('检测到通用邀请码:', generalCode);
+                    return true;
+                }
+
+                console.log('用户没有有效的邀请码');
+                return false;
+
+            } catch (error) {
+                console.error('检查邀请码权限失败:', error);
+                return false;
+            }
+        }
+
+        // 加载用户信息
+        async function loadUserInfo() {
+            try {
+                const { data: profile, error } = await window.supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') {
+                    console.error('加载用户信息失败:', error);
+                }
+
+                document.getElementById('user-name').textContent = profile?.name || currentUser.email;
+                document.getElementById('user-email').textContent = currentUser.email;
+                document.getElementById('user-status').textContent = profile?.role === 'admin' ? '管理员' : '内部用户';
+
+                // 更新用户头像显示
+                updateUserAvatar(profile);
+
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+            }
+        }
+
+        // 更新用户头像显示
+        function updateUserAvatar(profile) {
+            const avatarContainer = document.querySelector('.w-16.h-16.bg-gradient-to-br.from-blue-500.to-purple-600.rounded-full');
+            if (!avatarContainer) return;
+
+            if (profile && profile.avatar_url) {
+                // 用户有上传的头像，显示真实头像
+                avatarContainer.innerHTML = `
+                    <img src="${profile.avatar_url}" alt="用户头像" 
+                         class="w-full h-full object-cover rounded-full"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <i class="fas fa-user text-white text-2xl" style="display: none;"></i>
+                `;
+            } else {
+                // 用户没有上传头像，显示默认图标
+                avatarContainer.innerHTML = `
+                    <i class="fas fa-user text-white text-2xl"></i>
+                `;
+            }
+        }
+
+        // 加载项目数据
+        async function loadProjects() {
+            try {
+                console.log('加载项目数据...');
+                
+                // 先获取用户参与的项目ID列表
+                const { data: memberData, error: memberError } = await window.supabase
+                    .from('project_members')
+                    .select('project_id')
+                    .eq('user_id', currentUser.id);
+
+                if (memberError) {
+                    console.error('获取项目成员关系失败:', memberError);
+                    return;
+                }
+
+                if (!memberData || memberData.length === 0) {
+                    projects = [];
+                    displayProjects(projects);
+                    return;
+                }
+
+                const projectIds = memberData.map(member => member.project_id);
+                
+                // 获取项目详细信息
+                const { data, error } = await window.supabase
+                    .from('projects')
+                    .select('*')
+                    .in('id', projectIds)
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('加载项目数据失败:', error);
+                    return;
+                }
+
+                projects = data || [];
+                console.log('获取到的项目数据:', projects);
+                displayProjects(projects);
+
+            } catch (error) {
+                console.error('加载项目数据失败:', error);
+            }
+        }
+
+        // 显示项目列表
+        function displayProjects(projectsToShow) {
+            const container = document.getElementById('projects-container');
+            
+            if (!projectsToShow || projectsToShow.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-8 border border-blue-100">
+                            <i class="fas fa-project-diagram text-4xl text-blue-400 mb-4"></i>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">暂无项目</h3>
+                            <p class="text-gray-500 mb-4">您还没有参与任何项目</p>
+                            <button onclick="showSubmitProjectModal()" class="btn-primary">
+                                <i class="fas fa-plus mr-2"></i>添加第一个项目
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = projectsToShow.map((project, index) => {
+                // 生成随机渐变色
+                const gradients = [
+                    'from-blue-500 to-cyan-500',
+                    'from-purple-500 to-pink-500',
+                    'from-green-500 to-emerald-500',
+                    'from-orange-500 to-red-500',
+                    'from-indigo-500 to-purple-500',
+                    'from-teal-500 to-blue-500'
+                ];
+                const gradient = gradients[index % gradients.length];
+                
+                // 格式化日期
+                const date = new Date(project.created_at);
+                const formattedDate = date.toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                return `
+                    <div class="group relative bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+                        <!-- 顶部彩色条 -->
+                        <div class="h-2 bg-gradient-to-r ${gradient}"></div>
+                        
+                        <!-- 项目内容 -->
+                        <div class="p-6">
+                            <!-- 项目标题和类别 -->
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="text-xl font-bold text-gray-800 group-hover:text-gray-900 transition-colors">
+                                    ${project.name || '未命名项目'}
+                                </h3>
+                                <span class="px-3 py-1 text-xs font-medium bg-gradient-to-r ${gradient} text-white rounded-full shadow-sm">
+                                    ${project.category || '未分类'}
+                                </span>
+                            </div>
+                            
+                            <!-- 项目描述 -->
+                            <p class="text-gray-600 mb-4 line-clamp-3 leading-relaxed">
+                                ${project.description || '暂无描述'}
+                            </p>
+                            
+                            <!-- 项目信息 -->
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-calendar-alt text-gray-400"></i>
+                                    <span class="text-sm text-gray-500">${formattedDate}</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+                                    <span class="text-xs text-gray-500">活跃</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 附件信息 -->
+                            ${project.image_url || project.doc_url || project.ppt_url || project.other_attachment_url ? `
+                                <div class="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-blue-800">附件信息</p>
+                                            <div class="text-sm text-blue-600">
+                                                ${project.image_url ? '<span class="mr-2">📷 图片</span>' : ''}
+                                                ${project.doc_url ? '<span class="mr-2">📄 文档</span>' : ''}
+                                                ${project.ppt_url ? '<span class="mr-2">📊 PPT</span>' : ''}
+                                                ${project.other_attachment_url ? '<span class="mr-2">📎 附件</span>' : ''}
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-paperclip text-blue-600 text-xl"></i>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <!-- 奖项信息 -->
+                            ${project.award_level ? `
+                                <div class="mb-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-yellow-800">奖项信息</p>
+                                            <div class="text-sm text-yellow-700">
+                                                <div class="flex items-center space-x-2 mb-1">
+                                                    <i class="fas fa-trophy"></i>
+                                                    <span class="font-medium">${getAwardLevelText(project.award_level)}</span>
+                                                </div>
+                                                ${project.award_name ? `<div class="text-xs">${project.award_name}</div>` : ''}
+                                                ${project.award_date ? `<div class="text-xs text-yellow-600">${new Date(project.award_date).toLocaleDateString()}</div>` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            ${project.certificate_image_url ? 
+                                                '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="fas fa-check mr-1"></i>证书已上传</span>' :
+                                                '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><i class="fas fa-exclamation-triangle mr-1"></i>证书待上传</span>'
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <!-- 操作按钮 -->
+                            <div class="flex justify-end space-x-2 pt-4 border-t border-gray-100">
+                                <button onclick="viewProject(${project.id})" 
+                                        class="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200">
+                                    <i class="fas fa-eye"></i>
+                                    <span>查看</span>
+                                </button>
+                                ${project.owner_id === currentUser.id ? `
+                                    <button onclick="editProject(${project.id})" 
+                                            class="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200">
+                                        <i class="fas fa-edit"></i>
+                                        <span>编辑</span>
+                                    </button>
+                                    <button onclick="deleteProject(${project.id})" 
+                                            class="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200">
+                                        <i class="fas fa-trash"></i>
+                                        <span>删除</span>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <!-- 悬停效果 -->
+                        <div class="absolute inset-0 bg-gradient-to-r ${gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none"></div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 更新统计概览
+        function updateStatistics() {
+            const totalProjects = projects.length;
+            const ownedProjects = projects.filter(p => p.owner_id === currentUser.id).length;
+            const participatedProjects = projects.length; // 所有参与的项目
+            const activeProjects = projects.filter(p => p.status !== 'deleted').length;
+
+            document.getElementById('total-projects').textContent = totalProjects;
+            document.getElementById('approved-projects').textContent = ownedProjects;
+            document.getElementById('pending-projects').textContent = participatedProjects;
+            document.getElementById('awarded-projects').textContent = activeProjects;
+        }
+
+        // 全局变量跟踪编辑模式
+        window.isEditMode = false;
+        window.editingProjectId = null;
+
+        // 显示提交项目模态框
+        async function showSubmitProjectModal(editMode = false) {
+            try {
+                window.isEditMode = editMode;
+                console.log('showSubmitProjectModal - editMode:', editMode);
+                
+                // 加载用户列表用于选择项目负责人和邀请成员
+                await loadUsersForProject();
+                
+                // 等待DOM元素加载完成
+                const waitForModalElements = () => {
+                    return new Promise((resolve) => {
+                        const checkElements = () => {
+                            const modalTitle = document.querySelector('#submit-project-modal h3');
+                            const modalSubtitle = document.querySelector('#submit-project-modal p');
+                            const modalIcon = document.querySelector('#submit-project-modal .fas.fa-plus');
+                            const submitButton = document.querySelector('#submit-project-modal button[type="submit"]');
+                            
+                            if (modalTitle && modalSubtitle && modalIcon && submitButton) {
+                                resolve({ modalTitle, modalSubtitle, modalIcon, submitButton });
+                            } else {
+                                setTimeout(checkElements, 50);
+                            }
+                        };
+                        checkElements();
+                    });
+                };
+                
+                // 先显示模态框
+                document.getElementById('submit-project-modal').classList.remove('hidden');
+                console.log('Modal shown, waiting for elements...');
+                
+                // 等待元素加载完成
+                const { modalTitle, modalSubtitle, modalIcon, submitButton } = await waitForModalElements();
+                console.log('Modal elements loaded successfully');
+                
+                const submitButtonIcon = submitButton.querySelector('i');
+                const submitButtonText = submitButton.querySelector('span');
+                
+                console.log('Button elements:', {
+                    submitButtonIcon: !!submitButtonIcon,
+                    submitButtonText: !!submitButtonText
+                });
+                
+                if (window.isEditMode) {
+                    if (modalTitle) modalTitle.textContent = '编辑项目';
+                    if (modalSubtitle) modalSubtitle.textContent = '修改项目信息并更新团队成员';
+                    if (modalIcon) modalIcon.className = 'fas fa-edit text-white text-lg';
+                    if (submitButtonIcon) submitButtonIcon.className = 'fas fa-save mr-2';
+                    if (submitButtonText) {
+                        submitButtonText.textContent = '保存项目';
+                    } else {
+                        // 如果没有span，直接设置按钮的文本内容
+                        submitButton.innerHTML = '<i class="fas fa-save mr-2"></i>保存项目';
+                    }
+                } else {
+                    if (modalTitle) modalTitle.textContent = '添加新项目';
+                    if (modalSubtitle) modalSubtitle.textContent = '创建您的项目并邀请团队成员';
+                    if (modalIcon) modalIcon.className = 'fas fa-plus text-white text-lg';
+                    if (submitButtonIcon) submitButtonIcon.className = 'fas fa-plus mr-2';
+                    if (submitButtonText) {
+                        submitButtonText.textContent = '创建项目';
+                    } else {
+                        // 如果没有span，直接设置按钮的文本内容
+                        submitButton.innerHTML = '<i class="fas fa-plus mr-2"></i>创建项目';
+                    }
+                }
+                
+                console.log('Modal configuration completed');
+                
+                // 添加提交按钮事件监听器用于调试
+                const debugSubmitButton = document.querySelector('#submit-project-modal button[type="submit"]');
+                if (debugSubmitButton) {
+                    debugSubmitButton.addEventListener('click', function(e) {
+                        console.log('提交按钮被点击');
+                        console.log('按钮文本:', this.textContent);
+                        console.log('按钮HTML:', this.innerHTML);
+                        console.log('当前编辑模式:', window.isEditMode);
+                        console.log('编辑项目ID:', window.editingProjectId);
+                    }, { once: true });
+                }
+            } catch (error) {
+                console.error('显示模态框失败:', error);
+                alert('显示模态框失败，请重试');
+            }
+        }
+
+        // 隐藏提交项目模态框
+        function hideSubmitProjectModal() {
+            document.getElementById('submit-project-modal').classList.add('hidden');
+            document.getElementById('project-form').reset();
+            // 清空邀请列表
+            document.getElementById('invite-members-list').innerHTML = '';
+            // 清空文件URL显示
+            document.getElementById('project-image-url').textContent = '';
+            document.getElementById('project-doc-url').textContent = '';
+            document.getElementById('project-ppt-url').textContent = '';
+            document.getElementById('project-other-url').textContent = '';
+            // 重置编辑模式
+            window.isEditMode = false;
+            window.editingProjectId = null;
+        }
+
+        // 加载用户列表用于项目创建
+        async function loadUsersForProject() {
+            try {
+                const { data: users, error } = await window.supabase
+                    .from('user_profiles')
+                    .select('user_id, name, email, avatar_url')
+                    .order('name');
+
+                if (error) {
+                    console.error('加载用户列表失败:', error);
+                    return;
+                }
+
+                const userList = users || [];
+                
+                // 填充项目负责人选择框
+                const ownerSelect = document.getElementById('owner-select');
+                ownerSelect.innerHTML = '<option value="">请选择项目负责人...</option>';
+                userList.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.user_id;
+                    option.textContent = `${user.name || user.email} (${user.email})`;
+                    ownerSelect.appendChild(option);
+                });
+
+                // 填充成员邀请选择框
+                const memberSelect = document.getElementById('member-select');
+                memberSelect.innerHTML = '<option value="">请选择要邀请的用户...</option>';
+                userList.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.user_id;
+                    option.setAttribute('data-name', user.name || user.email);
+                    option.setAttribute('data-email', user.email);
+                    option.setAttribute('data-avatar', user.avatar_url || '');
+                    option.textContent = `${user.name || user.email} (${user.email})`;
+                    memberSelect.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('加载用户列表失败:', error);
+                throw error;
+            }
+        }
+
+        // 添加成员到邀请列表
+        async function addMemberToInviteList() {
+            const memberSelect = document.getElementById('member-select');
+            const roleSelect = document.getElementById('member-role');
+            const inviteList = document.getElementById('invite-members-list');
+            const ownerSelect = document.getElementById('owner-select');
+            
+            const selectedOption = memberSelect.options[memberSelect.selectedIndex];
+            if (!selectedOption.value) {
+                alert('请选择成员');
+                return;
+            }
+            
+            const userId = selectedOption.value;
+            const userName = selectedOption.getAttribute('data-name');
+            const userEmail = selectedOption.getAttribute('data-email');
+            const userAvatarUrl = selectedOption.getAttribute('data-avatar');
+            const role = roleSelect.value;
+            
+            // 检查是否是项目负责人
+            if (ownerSelect.value === userId) {
+                alert('项目负责人无需重复邀请');
+                return;
+            }
+            
+            // 检查是否已经添加过
+            const existingMember = inviteList.querySelector(`[data-user-id="${userId}"]`);
+            if (existingMember) {
+                alert('该用户已经添加到邀请列表了');
+                return;
+            }
+            
+            // 创建邀请项
+            const inviteItem = document.createElement('div');
+            inviteItem.className = 'flex items-center justify-between p-4 bg-white/90 backdrop-blur-sm rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-all';
+            inviteItem.setAttribute('data-user-id', userId);
+            
+            // 根据是否有头像URL来决定显示内容
+            const avatarContent = userAvatarUrl ? 
+                `<img src="${userAvatarUrl}" alt="用户头像" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg" style="display: none;">
+                     ${userName.charAt(0).toUpperCase()}
+                 </div>` :
+                `<div class="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg">
+                     ${userName.charAt(0).toUpperCase()}
+                 </div>`;
+            
+            inviteItem.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full overflow-hidden shadow-lg">
+                        ${avatarContent}
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900">${userName}</p>
+                        <p class="text-xs text-gray-500">${userEmail}</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="px-3 py-1 text-xs font-medium rounded-full shadow-sm ${
+                        role === 'manager' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700'
+                    }">
+                        <i class="fas ${role === 'manager' ? 'fa-crown' : 'fa-user'} mr-1"></i>
+                        ${role === 'manager' ? '管理员' : '成员'}
+                    </span>
+                    <button type="button" onclick="removeMemberFromInviteList('${userId}')" 
+                        class="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center transition-colors">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                </div>
+            `;
+            
+            inviteList.appendChild(inviteItem);
+            
+            // 清空选择
+            memberSelect.value = '';
+        }
+
+        // 从邀请列表中移除成员
+        function removeMemberFromInviteList(userId) {
+            const inviteItem = document.querySelector(`[data-user-id="${userId}"]`);
+            if (inviteItem) {
+                inviteItem.remove();
+            }
+        }
+
+        // 获取邀请列表中的成员
+        function getInviteMembers() {
+            const inviteList = document.getElementById('invite-members-list');
+            const inviteItems = inviteList.querySelectorAll('[data-user-id]');
+            const members = [];
+            
+            inviteItems.forEach(item => {
+                const userId = item.getAttribute('data-user-id');
+                const roleElement = item.querySelector('span');
+                const role = roleElement.textContent.includes('管理员') ? 'manager' : 'member';
+                
+                members.push({
+                    userId: userId,
+                    role: role
+                });
+            });
+            
+            return members;
+        }
+
+        // 显示申请奖项模态框
+        function showAwardModal() {
+            const userProjects = projects.filter(p => p.owner_id === currentUser.id);
+            const select = document.getElementById('award-project-select');
+            
+            select.innerHTML = '<option value="">请选择项目</option>';
+            userProjects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.id;
+                option.textContent = project.name;
+                select.appendChild(option);
+            });
+
+            if (userProjects.length === 0) {
+                alert('您还没有创建的项目，无法申请奖项');
+                return;
+            }
+
+            document.getElementById('award-modal').classList.remove('hidden');
+            // 设置默认日期为今天
+            const awardDateInput = document.querySelector('input[name="award_date"]');
+            if (awardDateInput) {
+                awardDateInput.value = new Date().toISOString().split('T')[0];
+            }
+        }
+
+        // 隐藏申请奖项模态框
+        function hideAwardModal() {
+            document.getElementById('award-modal').classList.add('hidden');
+            document.getElementById('award-form').reset();
+            
+            // 清除文件上传显示
+            document.getElementById('certificate-image-url').textContent = '';
+            document.getElementById('award-attachments-list').innerHTML = '';
+            document.getElementById('hidden-certificate-image-url').value = '';
+            document.getElementById('hidden-award-attachments-url').value = '';
+        }
+
+        // 提交项目
+        async function submitProject(event) {
+            event.preventDefault();
+            console.log('submitProject 被调用');
+            console.log('事件对象:', event);
+            console.log('表单元素:', event.target);
+            
+            // 检查表单验证
+            const form = event.target;
+            console.log('表单验证状态:', form.checkValidity());
+            
+            if (!form.checkValidity()) {
+                console.log('表单验证失败');
+                form.reportValidity();
+                return;
+            }
+            
+            const formData = new FormData(event.target);
+            const ownerId = formData.get('owner_id');
+            
+            console.log('表单数据:', {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                category: formData.get('category'),
+                owner_id: ownerId,
+                image_url: formData.get('image_url'),
+                doc_url: formData.get('doc_url'),
+                ppt_url: formData.get('ppt_url'),
+                other_attachment_url: formData.get('other_attachment_url')
+            });
+            
+            if (!ownerId) {
+                alert('请选择项目负责人');
+                return;
+            }
+            
+            const projectData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                category: formData.get('category') || '',
+                owner_id: ownerId,
+                image_url: formData.get('image_url') || '',
+                doc_url: formData.get('doc_url') || '',
+                ppt_url: formData.get('ppt_url') || '',
+                other_attachment_url: formData.get('other_attachment_url') || ''
+            };
+
+            try {
+                console.log('提交项目 - 编辑模式:', window.isEditMode, '编辑项目ID:', window.editingProjectId);
+                if (window.isEditMode && window.editingProjectId) {
+                    // 编辑模式：更新现有项目
+                    console.log('准备更新的项目数据:', projectData);
+                    
+                    // 验证项目是否存在且用户有权限编辑
+                    const { data: existingProject, error: checkError } = await window.supabase
+                        .from('projects')
+                        .select('*')
+                        .eq('id', window.editingProjectId)
+                        .eq('owner_id', currentUser.id)
+                        .single();
+                    
+                    if (checkError || !existingProject) {
+                        console.error('项目不存在或无权限编辑:', checkError);
+                        alert('项目不存在或无权限编辑');
+                        return;
+                    }
+                    
+                    const { error: updateError } = await window.supabase
+                        .from('projects')
+                        .update(projectData)
+                        .eq('id', window.editingProjectId);
+
+                    if (updateError) {
+                        console.error('更新项目失败:', updateError);
+                        alert('更新失败: ' + updateError.message);
+                        return;
+                    }
+
+                    console.log('项目更新成功');
+                    alert('项目更新成功！');
+                    
+                    // 创建项目更新消息通知
+                    await createProjectUpdateNotification(window.editingProjectId, 'updated');
+                    
+                } else {
+                    // 创建模式：创建新项目
+                    console.log('准备插入的项目数据:', projectData);
+                    
+                    // 获取邀请的成员列表
+                    const inviteMembers = getInviteMembers();
+                    console.log('邀请的成员:', inviteMembers);
+                    
+                    // 开始事务：先创建项目，再创建项目成员关联和邀请
+                    const { data: projectResult, error: projectError } = await window.supabase
+                        .from('projects')
+                        .insert([projectData])
+                        .select();
+
+                    if (projectError) {
+                        console.error('创建项目失败:', projectError);
+                        alert('创建失败: ' + projectError.message);
+                        return;
+                    }
+
+                    console.log('项目创建成功:', projectResult);
+                    
+                    const projectId = projectResult[0].id;
+                    const membersToInsert = [
+                        // 项目负责人
+                        {
+                            project_id: projectId,
+                            user_id: ownerId,
+                            role: 'owner',
+                            status: 'active'
+                        }
+                    ];
+
+                    // 创建项目成员关联
+                    const { error: memberError } = await window.supabase
+                        .from('project_members')
+                        .insert(membersToInsert);
+
+                    if (memberError) {
+                        console.error('创建项目成员关联失败:', memberError);
+                        // 如果成员关联失败，删除刚创建的项目
+                        await window.supabase
+                            .from('projects')
+                            .delete()
+                            .eq('id', projectId);
+                        alert('创建失败: ' + memberError.message);
+                        return;
+                    }
+
+                    console.log('项目成员关联创建成功');
+                    
+                    // 发送项目邀请
+                    if (inviteMembers.length > 0) {
+                        await sendProjectInvitations(projectId, inviteMembers);
+                    }
+                    
+                    // 创建项目创建消息通知
+                    await createProjectUpdateNotification(projectId, 'created');
+                    
+                    alert('项目创建成功！');
+                }
+                
+                hideSubmitProjectModal();
+                await loadProjects();
+                await loadMessages();
+                updateStatistics();
+
+            } catch (error) {
+                console.error('操作失败:', error);
+                alert('操作失败: ' + error.message);
+            }
+        }
+
+        // 创建项目更新消息通知
+        async function createProjectUpdateNotification(projectId, action) {
+            try {
+                const project = projects.find(p => p.id === projectId);
+                if (!project) {
+                    console.error('项目不存在，无法创建通知');
+                    return;
+                }
+                
+                // 获取项目成员列表（除了操作者本人）
+                const { data: members, error: memberError } = await window.supabase
+                    .from('project_members')
+                    .select('user_id')
+                    .eq('project_id', projectId)
+                    .eq('status', 'active')
+                    .neq('user_id', currentUser.id);
+                
+                if (memberError) {
+                    console.error('获取项目成员失败:', memberError);
+                    return;
+                }
+                
+                if (!members || members.length === 0) {
+                    console.log('项目没有其他成员，跳过通知创建');
+                    return;
+                }
+                
+                // 为每个成员创建项目更新消息
+                const actionText = {
+                    'created': '创建了新项目',
+                    'updated': '更新了项目',
+                    'deleted': '删除了项目'
+                };
+                
+                const messageText = `${currentUser.user_metadata?.name || currentUser.email} ${actionText[action]} "${project.name}"`;
+                
+                // 将消息存储到localStorage中，供消息加载时使用
+                const projectMessages = JSON.parse(localStorage.getItem('projectMessages') || '[]');
+                const newMessage = {
+                    id: `project_${projectId}_${Date.now()}`,
+                    type: 'project_update',
+                    project_id: projectId,
+                    project_name: project.name,
+                    action: action,
+                    message: messageText,
+                    created_at: new Date().toISOString(),
+                    created_by: currentUser.id,
+                    target_users: members.map(m => m.user_id)
+                };
+                
+                projectMessages.push(newMessage);
+                localStorage.setItem('projectMessages', JSON.stringify(projectMessages));
+                
+                console.log('项目更新消息已创建:', newMessage);
+                
+            } catch (error) {
+                console.error('创建项目更新消息失败:', error);
+            }
+        }
+
+        // 发送项目邀请
+        async function sendProjectInvitations(projectId, inviteMembers) {
+            try {
+                const project = projects.find(p => p.id === projectId) || { name: '新项目' };
+                
+                for (const member of inviteMembers) {
+                    const invitationData = {
+                        project_id: projectId,
+                        inviter_id: currentUser.id,
+                        invited_user_id: member.userId,
+                        status: 'pending'
+                    };
+
+                    console.log('准备发送邀请数据:', invitationData);
+
+                    const { error: inviteError } = await window.supabase
+                        .from('project_invitations')
+                        .insert([invitationData]);
+
+                    if (inviteError) {
+                        console.error('发送邀请失败:', inviteError);
+                        
+                        // 如果字段名不匹配，尝试使用旧字段名
+                        if (inviteError.message.includes('column') || inviteError.message.includes('field')) {
+                            console.log('尝试使用备用字段名...');
+                            const fallbackData = {
+                                project_id: projectId,
+                                inviter_id: currentUser.id,
+                                invited_user_id: member.userId, // 使用旧字段名
+                                status: 'pending'
+                            };
+                            
+                            const { error: fallbackError } = await window.supabase
+                                .from('project_invitations')
+                                .insert([fallbackData]);
+                                
+                            if (fallbackError) {
+                                console.error('备用方案发送邀请也失败:', fallbackError);
+                            } else {
+                                console.log(`邀请已发送给用户 ${member.userId} (使用备用方案)`);
+                            }
+                        }
+                    } else {
+                        console.log(`邀请已发送给用户 ${member.userId}`);
+                    }
+                }
+            } catch (error) {
+                console.error('发送项目邀请失败:', error);
+            }
+        }
+
+        // 申请奖项
+        async function submitAward(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const projectId = formData.get('project_id');
+            
+            // 验证必填字段
+            const certificateImageUrl = formData.get('certificate_image_url');
+            if (!certificateImageUrl) {
+                alert('请上传电子版证书图片');
+                return;
+            }
+            
+            const awardData = {
+                award_level: formData.get('award_level'),
+                award_name: formData.get('award_name'),
+                award_date: formData.get('award_date'),
+                certificate_image_url: certificateImageUrl,
+                award_attachments_url: formData.get('award_attachments_url') || null
+            };
+
+            try {
+                const { data, error } = await window.supabase
+                    .from('projects')
+                    .update(awardData)
+                    .eq('id', projectId)
+                    .eq('owner_id', currentUser.id);
+
+                if (error) {
+                    console.error('申请奖项失败:', error);
+                    alert('申请失败: ' + error.message);
+                    return;
+                }
+
+                alert('奖项申请成功！');
+                hideAwardModal();
+                await loadProjects();
+                await loadMessages(); // 刷新消息通知
+                updateStatistics();
+
+            } catch (error) {
+                console.error('申请奖项失败:', error);
+                alert('申请失败，请重试');
+            }
+        }
+
+
+
+        // 刷新数据
+        async function refreshData() {
+            await loadProjects();
+            await loadMessages();
+            updateStatistics();
+        }
+
+        // 加载消息通知
+        async function loadMessages() {
+            try {
+                console.log('开始加载消息通知...');
+                console.log('当前用户ID:', currentUser?.id);
+                
+                // 获取用户参与的所有项目ID
+                const { data: userProjects, error: projectError } = await window.supabase
+                    .from('project_members')
+                    .select('project_id')
+                    .eq('user_id', currentUser.id)
+                    .eq('status', 'active');
+
+                if (projectError) {
+                    console.error('获取用户项目失败:', projectError);
+                    return;
+                }
+
+                const projectIds = userProjects.map(p => p.project_id);
+                console.log('用户参与的项目ID:', projectIds);
+
+                // 如果没有参与任何项目，只显示邀请消息
+                if (projectIds.length === 0) {
+                    console.log('用户没有参与任何项目，只加载邀请消息');
+                    const invitationMessages = await loadInvitationMessages();
+                    console.log('邀请消息数量:', invitationMessages.length);
+                    displayMessages(invitationMessages);
+                    updateUnreadCount(invitationMessages);
+                    return;
+                }
+
+                // 并行加载多种类型的消息
+                const [invitationMessages, projectUpdateMessages, awardMessages] = await Promise.all([
+                    loadInvitationMessages(),
+                    loadProjectUpdateMessages(projectIds),
+                    loadAwardMessages(projectIds)
+                ]);
+
+                // 合并所有消息并按时间排序
+                const allMessages = [
+                    ...invitationMessages,
+                    ...projectUpdateMessages,
+                    ...awardMessages
+                ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                console.log('合并后的所有消息:', allMessages);
+                
+                displayMessages(allMessages);
+                updateUnreadCount(allMessages);
+
+            } catch (error) {
+                console.error('加载消息失败:', error);
+                // 如果主查询失败，使用备用方案
+                await loadMessagesFallback();
+            }
+        }
+
+        // 加载项目邀请消息
+        async function loadInvitationMessages() {
+            try {
+                console.log('开始加载邀请消息...');
+                const { data: invitations, error: invitationError } = await window.supabase
+                    .from('project_invitations')
+                    .select('*')
+                    .or(`invitee_id.eq.${currentUser.id},inviter_id.eq.${currentUser.id}`)
+                    .order('created_at', { ascending: false });
+
+                if (invitationError) {
+                    console.error('加载邀请失败:', invitationError);
+                    return [];
+                }
+
+                console.log('获取到的邀请消息:', invitations);
+
+                return invitations.map(inv => ({
+                    ...inv,
+                    type: 'invitation',
+                    message: inv.status === 'pending' ? '您收到了项目邀请' : 
+                             inv.status === 'accepted' ? '您接受了项目邀请' : '您拒绝了项目邀请',
+                    icon: 'fas fa-user-plus',
+                    color: inv.status === 'pending' ? 'blue' : inv.status === 'accepted' ? 'green' : 'red'
+                }));
+            } catch (error) {
+                console.error('加载邀请消息失败:', error);
+                return [];
+            }
+        }
+
+        // 加载项目更新消息
+        async function loadProjectUpdateMessages(projectIds) {
+            try {
+                // 从localStorage加载项目更新消息
+                const projectMessages = JSON.parse(localStorage.getItem('projectMessages') || '[]');
+                
+                // 过滤出当前用户相关的项目更新消息
+                const userProjectMessages = projectMessages.filter(msg => 
+                    msg.target_users && msg.target_users.includes(currentUser.id) &&
+                    projectIds.includes(msg.project_id)
+                );
+                
+                // 获取已读消息记录
+                const readMessages = JSON.parse(localStorage.getItem('readMessages') || '[]');
+                
+                // 过滤掉已读的项目更新消息
+                const unreadUpdates = userProjectMessages.filter(msg => {
+                    const readRecord = readMessages.find(rm => 
+                        rm.type === 'project_update' && 
+                        rm.id === msg.id &&
+                        new Date(rm.read_at) > new Date(msg.created_at)
+                    );
+                    return !readRecord;
+                });
+                
+                // 按时间排序
+                unreadUpdates.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                
+                return unreadUpdates.map(msg => ({
+                    id: msg.id,
+                    type: 'project_update',
+                    project_id: msg.project_id,
+                    project_name: msg.project_name,
+                    action: msg.action,
+                    created_at: msg.created_at,
+                    message: msg.message,
+                    icon: 'fas fa-edit',
+                    color: 'purple'
+                }));
+            } catch (error) {
+                console.error('加载项目更新消息失败:', error);
+                return [];
+            }
+        }
+
+        // 加载奖项申请消息
+        async function loadAwardMessages(projectIds) {
+            try {
+                // 获取有奖项信息的项目
+                const { data: awardProjects, error: awardError } = await window.supabase
+                    .from('projects')
+                    .select('id, name, award_level, award_name, award_date, certificate_image_url, created_at')
+                    .in('id', projectIds)
+                    .not('award_level', 'is', null)
+                    .order('created_at', { ascending: false });
+
+                if (awardError) {
+                    console.error('加载奖项信息失败:', awardError);
+                    return [];
+                }
+
+                // 获取已读消息记录
+                const readMessages = JSON.parse(localStorage.getItem('readMessages') || '[]');
+                
+                // 过滤掉已读的奖项申请消息
+                const unreadAwards = awardProjects.filter(project => {
+                    const readRecord = readMessages.find(rm => 
+                        rm.type === 'award' && 
+                        rm.project_id === project.id &&
+                        new Date(rm.read_at) > new Date(project.created_at)
+                    );
+                    return !readRecord;
+                });
+
+                return unreadAwards.map(project => ({
+                    id: `award_${project.id}`,
+                    type: 'award',
+                    project_id: project.id,
+                    project_name: project.name,
+                    created_at: project.created_at,
+                    message: `项目"${project.name}"已申请${getAwardLevelText(project.award_level)}奖项`,
+                    icon: 'fas fa-trophy',
+                    color: 'yellow',
+                    award_info: {
+                        level: project.award_level,
+                        name: project.award_name,
+                        date: project.award_date,
+                        has_certificate: !!project.certificate_image_url
+                    }
+                }));
+            } catch (error) {
+                console.error('加载奖项消息失败:', error);
+                return [];
+            }
+        }
+
+        // 获取奖项级别文本
+        function getAwardLevelText(level) {
+            const levelMap = {
+                'national': '国家级',
+                'provincial': '省级',
+                'school': '校级',
+                'other': '其他'
+            };
+            return levelMap[level] || level;
+        }
+
+        // 备用消息加载方案（当外键关系有问题时使用）
+        async function loadMessagesFallback() {
+            try {
+                console.log('使用备用方案加载消息...');
+                
+                // 分步查询，避免外键关系问题
+                const { data: invitations, error: invitationError } = await window.supabase
+                    .from('project_invitations')
+                    .select('*')
+                    .or(`invitee_id.eq.${currentUser.id},inviter_id.eq.${currentUser.id}`)
+                    .order('created_at', { ascending: false });
+
+                if (invitationError) {
+                    console.error('备用方案加载邀请失败:', invitationError);
+                    return;
+                }
+
+                // 获取相关的项目信息
+                const projectIds = invitations.map(inv => inv.project_id).filter(Boolean);
+                let projectMap = {};
+                if (projectIds.length > 0) {
+                    const { data: projectData } = await window.supabase
+                        .from('projects')
+                        .select('id, name')
+                        .in('id', projectIds);
+                    
+                    if (projectData) {
+                        projectMap = projectData.reduce((acc, p) => {
+                            acc[p.id] = p;
+                            return acc;
+                        }, {});
+                    }
+                }
+
+                // 获取相关的用户信息
+                const userIds = invitations.map(inv => inv.inviter_id).filter(Boolean);
+                let userMap = {};
+                if (userIds.length > 0) {
+                    const { data: userData } = await window.supabase
+                        .from('user_profiles')
+                        .select('user_id, name, email')
+                        .in('user_id', userIds);
+                    
+                    if (userData) {
+                        userMap = userData.reduce((acc, u) => {
+                            acc[u.user_id] = u;
+                            return acc;
+                        }, {});
+                    }
+                }
+
+                // 合并数据
+                const messages = invitations.map(inv => {
+                    return {
+                        ...inv,
+                        projects: projectMap[inv.project_id] || { name: '未知项目' },
+                        user_profiles: userMap[inv.inviter_id] || { name: '未知用户', email: '' }
+                    };
+                });
+
+                displayMessages(messages || []);
+                updateUnreadCount(messages || []);
+
+            } catch (error) {
+                console.error('备用方案加载消息失败:', error);
+                // 显示错误信息给用户
+                const container = document.getElementById('messages-container');
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-red-400 mb-4">
+                            <i class="fas fa-exclamation-triangle text-4xl"></i>
+                        </div>
+                        <p class="text-red-600 mb-2">加载消息失败</p>
+                        <p class="text-sm text-gray-600">请检查数据库连接或联系管理员</p>
+                        <button onclick="loadMessages()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-refresh mr-2"></i>重试
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // 显示消息列表
+        function displayMessages(messages) {
+            const container = document.getElementById('messages-container');
+            
+            if (!messages || messages.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-gray-400 mb-4">
+                            <i class="fas fa-bell text-4xl"></i>
+                        </div>
+                        <p class="text-gray-600">暂无消息通知</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = messages.map(message => {
+                // 根据消息类型生成不同的显示内容
+                if (message.type === 'invitation') {
+                    return `
+                        <div class="border border-gray-200 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow ${message.status === 'pending' ? 'bg-blue-50 border-blue-200' : ''}">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user-plus text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-900">项目邀请</h4>
+                                        <p class="text-xs text-gray-600">来自: ${message.user_profiles?.name || '未知用户'}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-1 rounded-full text-xs ${
+                                        message.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                        message.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                        'bg-red-100 text-red-800'
+                                    }">
+                                        ${message.status === 'pending' ? '待处理' :
+                                          message.status === 'accepted' ? '已接受' : '已拒绝'}
+                                    </span>
+                                    <span class="text-xs text-gray-500">${new Date(message.created_at).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-700 mb-3">${message.message}</p>
+                            ${message.status === 'pending' ? `
+                                <div class="flex space-x-2">
+                                    <button onclick="respondToInvitation('${message.id}', 'accepted')" class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
+                                        <i class="fas fa-check mr-1"></i>接受邀请
+                                    </button>
+                                    <button onclick="respondToInvitation('${message.id}', 'rejected')" class="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+                                        <i class="fas fa-times mr-1"></i>拒绝邀请
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else if (message.type === 'project_update') {
+                    const actionText = {
+                        'created': '创建了项目',
+                        'updated': '更新了项目',
+                        'deleted': '删除了项目'
+                    };
+                    
+                    const actionColor = {
+                        'created': 'green',
+                        'updated': 'purple',
+                        'deleted': 'red'
+                    };
+                    
+                    const color = actionColor[message.action] || 'purple';
+                    const bgColor = `${color}-50`;
+                    const borderColor = `${color}-200`;
+                    const buttonColor = `${color}-600`;
+                    const buttonHoverColor = `${color}-700`;
+                    
+                    return `
+                        <div class="border border-gray-200 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow bg-${bgColor} border-${borderColor}">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-gradient-to-r from-${color}-500 to-${color === 'green' ? 'emerald' : color === 'red' ? 'pink' : 'pink'}-600 rounded-full flex items-center justify-center">
+                                        <i class="fas ${message.action === 'created' ? 'fa-plus' : message.action === 'deleted' ? 'fa-trash' : 'fa-edit'} text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-900">项目${actionText[message.action]}</h4>
+                                        <p class="text-xs text-gray-600">项目: ${message.project_name}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-1 rounded-full text-xs bg-${color}-100 text-${color}-800">
+                                        ${actionText[message.action]}
+                                    </span>
+                                    <span class="text-xs text-gray-500">${new Date(message.created_at).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-700 mb-3">${message.message}</p>
+                            ${message.action !== 'deleted' ? `
+                                <div class="flex space-x-2">
+                                    <button onclick="viewProject(${message.project_id})" class="px-3 py-1 bg-${buttonColor} text-white text-xs rounded hover:bg-${buttonHoverColor}">
+                                        <i class="fas fa-eye mr-1"></i>查看项目
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else if (message.type === 'award') {
+                    return `
+                        <div class="border border-gray-200 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow bg-yellow-50 border-yellow-200">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-trophy text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-900">奖项申请</h4>
+                                        <p class="text-xs text-gray-600">项目: ${message.project_name}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
+                                        奖项申请
+                                    </span>
+                                    <span class="text-xs text-gray-500">${new Date(message.created_at).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-700 mb-3">${message.message}</p>
+                            ${message.award_info ? `
+                                <div class="bg-white rounded-lg p-3 mb-3 border border-yellow-200">
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div><span class="font-medium">奖项级别:</span> ${getAwardLevelText(message.award_info.level)}</div>
+                                        <div><span class="font-medium">奖项名称:</span> ${message.award_info.name || '未设置'}</div>
+                                        ${message.award_info.date ? `<div><span class="font-medium">获奖日期:</span> ${new Date(message.award_info.date).toLocaleDateString()}</div>` : ''}
+                                        <div><span class="font-medium">证书状态:</span> ${message.award_info.has_certificate ? '已上传' : '未上传'}</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            <div class="flex space-x-2">
+                                <button onclick="viewProject(${message.project_id})" class="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700">
+                                    <i class="fas fa-eye mr-1"></i>查看项目
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // 默认消息格式
+                    return `
+                        <div class="border border-gray-200 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-info-circle text-white text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-900">系统通知</h4>
+                                        <p class="text-xs text-gray-600">${new Date(message.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-700">${message.message || '未知消息'}</p>
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        // 更新未读消息数量
+        function updateUnreadCount(messages) {
+            // 计算未读消息数量：邀请消息中的pending状态 + 项目更新和奖项申请消息
+            const unreadCount = messages.filter(m => 
+                (m.type === 'invitation' && m.status === 'pending') ||
+                m.type === 'project_update' ||
+                m.type === 'award'
+            ).length;
+            
+            const unreadElement = document.getElementById('unread-count');
+            
+            if (unreadCount > 0) {
+                unreadElement.textContent = unreadCount;
+                unreadElement.classList.remove('hidden');
+            } else {
+                unreadElement.classList.add('hidden');
+            }
+        }
+
+        // 响应邀请
+        async function respondToInvitation(invitationId, response) {
+            try {
+                console.log('响应邀请:', invitationId, response);
+                
+                // 更新邀请状态
+                const { error: updateError } = await window.supabase
+                    .from('project_invitations')
+                    .update({ status: response })
+                    .eq('id', invitationId);
+
+                if (updateError) {
+                    console.error('更新邀请状态失败:', updateError);
+                    alert('操作失败，请重试');
+                    return;
+                }
+
+                // 如果接受邀请，添加到项目成员
+                if (response === 'accepted') {
+                    const { data: invitation, error: inviteError } = await window.supabase
+                        .from('project_invitations')
+                        .select('*')
+                        .eq('id', invitationId)
+                        .single();
+
+                    if (!inviteError && invitation) {
+                        console.log('获取邀请信息成功:', invitation);
+                        
+                        // 确定用户ID字段名
+                        const userId = invitation.invitee_id || invitation.invited_user_id;
+                        const userRole = invitation.role || 'member';
+                        
+                        if (userId) {
+                            const { error: memberError } = await window.supabase
+                                .from('project_members')
+                                .insert([{
+                                    project_id: invitation.project_id,
+                                    user_id: userId,
+                                    role: userRole,
+                                    status: 'active'
+                                }]);
+
+                            if (memberError) {
+                                console.error('添加项目成员失败:', memberError);
+                                alert('接受邀请成功，但添加到项目成员失败，请联系管理员');
+                            } else {
+                                console.log('成功添加到项目成员');
+                            }
+                        } else {
+                            console.error('无法确定用户ID');
+                            alert('接受邀请成功，但无法确定用户信息，请联系管理员');
+                        }
+                    } else {
+                        console.error('获取邀请信息失败:', inviteError);
+                    }
+                }
+
+                alert(response === 'accepted' ? '已接受邀请！' : '已拒绝邀请');
+                
+                // 重新加载消息和项目数据
+                await loadMessages();
+                await loadProjects();
+                updateStatistics();
+
+            } catch (error) {
+                console.error('响应邀请失败:', error);
+                alert('操作失败，请重试');
+            }
+        }
+
+        // 标记所有消息为已读
+        async function markAllAsRead() {
+            try {
+                // 更新邀请消息状态
+                const { error: invitationError } = await window.supabase
+                    .from('project_invitations')
+                    .update({ status: 'read' })
+                    .eq('invitee_id', currentUser.id)
+                    .eq('status', 'pending');
+
+                if (invitationError) {
+                    console.error('标记邀请已读失败:', invitationError);
+                }
+
+                // 将项目更新和奖项申请消息标记为已读（存储在localStorage中）
+                const readMessages = JSON.parse(localStorage.getItem('readMessages') || '[]');
+                const currentTime = new Date().toISOString();
+                
+                // 获取用户参与的项目ID
+                const { data: userProjects } = await window.supabase
+                    .from('project_members')
+                    .select('project_id')
+                    .eq('user_id', currentUser.id)
+                    .eq('status', 'active');
+
+                if (userProjects) {
+                    const projectIds = userProjects.map(p => p.project_id);
+                    
+                    // 标记所有项目更新和奖项申请消息为已读
+                    projectIds.forEach(projectId => {
+                        readMessages.push({
+                            type: 'project_update',
+                            project_id: projectId,
+                            read_at: currentTime
+                        });
+                        readMessages.push({
+                            type: 'award',
+                            project_id: projectId,
+                            read_at: currentTime
+                        });
+                    });
+                    
+                    // 标记localStorage中的项目更新消息为已读
+                    const projectMessages = JSON.parse(localStorage.getItem('projectMessages') || '[]');
+                    const userProjectMessages = projectMessages.filter(msg => 
+                        msg.target_users && msg.target_users.includes(currentUser.id)
+                    );
+                    
+                    userProjectMessages.forEach(msg => {
+                        readMessages.push({
+                            type: 'project_update',
+                            id: msg.id,
+                            read_at: currentTime
+                        });
+                    });
+                    
+                    localStorage.setItem('readMessages', JSON.stringify(readMessages));
+                }
+
+                await loadMessages();
+
+            } catch (error) {
+                console.error('标记已读失败:', error);
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                const { error } = await window.supabase.auth.signOut();
+                if (error) {
+                    console.error('退出登录失败:', error);
+                } else {
+                    window.location.href = './index.html';
+                }
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        }
+
+        // 文件上传功能
+        async function selectAndUploadProjectFile(type) {
+            // 使用 StorageManager 获取最佳可用的项目文件存储桶
+            const bucket = await window.storageManager.getBestProjectBucket();
+            if (!bucket) {
+                const availableBuckets = await window.storageManager.getAvailableBuckets();
+                alert(`没有可用的项目文件存储桶。\n\n可用的存储桶: ${availableBuckets.join(', ')}\n\n请检查存储配置或联系管理员。`);
+                return;
+            }
+            let accept = '*';
+            if (type === 'doc') accept = '.pdf,.doc,.docx';
+            if (type === 'ppt') accept = '.ppt,.pptx';
+            if (type === 'image') accept = 'image/*';
+            
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = accept;
+            input.onchange = async function() {
+                if (!input.files.length) return;
+                const file = input.files[0];
+                const filePath = `projects/${Date.now()}_${file.name}`;
+                
+                try {
+                    const { data, error } = await window.supabase.storage
+                        .from(bucket)
+                        .upload(filePath, file, { upsert: true });
+                    
+                    if (error) {
+                        alert('上传失败: ' + error.message);
+                        return;
+                    }
+                    
+                    const { data: publicUrlData } = window.supabase.storage
+                        .from(bucket)
+                        .getPublicUrl(filePath);
+                    
+                    document.getElementById(`project-${type}-url`).textContent = file.name;
+                    document.getElementById(`hidden-${type}-url`).value = publicUrlData.publicUrl;
+                    
+                } catch (error) {
+                    console.error('文件上传失败:', error);
+                    alert('上传失败，请重试');
+                }
+            };
+            input.click();
+        }
+
+        // 证书图片上传功能
+        async function selectAndUploadCertificateImage() {
+            console.log('开始证书图片上传流程...');
+            
+            // 检查用户是否已登录
+            if (!currentUser) {
+                alert('请先登录');
+                return;
+            }
+            
+            // 使用 StorageManager 获取最佳可用的项目文件存储桶
+            const bucket = await window.storageManager.getBestProjectBucket();
+            if (!bucket) {
+                const availableBuckets = await window.storageManager.getAvailableBuckets();
+                alert(`没有可用的项目文件存储桶。\n\n可用的存储桶: ${availableBuckets.join(', ')}\n\n请检查存储配置或联系管理员。`);
+                return;
+            }
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = async function() {
+                if (!input.files.length) return;
+                
+                const file = input.files[0];
+                console.log('选择的文件:', file.name, '大小:', file.size, '类型:', file.type);
+                
+                // 文件大小检查（50MB限制）
+                if (file.size > 50 * 1024 * 1024) {
+                    alert('文件大小不能超过50MB');
+                    return;
+                }
+                
+                // 文件类型检查
+                if (!file.type.startsWith('image/')) {
+                    alert('请选择图片文件');
+                    return;
+                }
+                
+                // 生成安全的文件名
+                const timestamp = Date.now();
+                const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                const filePath = `awards/certificates/${timestamp}_${safeFileName}`;
+                
+                console.log('准备上传到路径:', filePath);
+                
+                try {
+                    // 上传文件
+                    console.log('开始上传文件...');
+                    const { data, error } = await window.supabase.storage
+                        .from(bucket)
+                        .upload(filePath, file, { 
+                            upsert: true,
+                            cacheControl: '3600'
+                        });
+                    
+                    if (error) {
+                        console.error('文件上传失败:', error);
+                        alert('证书图片上传失败: ' + error.message);
+                        return;
+                    }
+                    
+                    console.log('文件上传成功:', data);
+                    
+                    // 获取公共URL
+                    const { data: publicUrlData } = window.supabase.storage
+                        .from(bucket)
+                        .getPublicUrl(filePath);
+                    
+                    console.log('获取到公共URL:', publicUrlData.publicUrl);
+                    
+                    // 更新UI
+                    const displayElement = document.getElementById('certificate-image-url');
+                    const hiddenElement = document.getElementById('hidden-certificate-image-url');
+                    
+                    if (displayElement && hiddenElement) {
+                        displayElement.textContent = file.name;
+                        hiddenElement.value = publicUrlData.publicUrl;
+                        console.log('UI更新成功');
+                    } else {
+                        console.error('找不到UI元素:', { displayElement, hiddenElement });
+                    }
+                    
+                } catch (error) {
+                    console.error('证书图片上传失败:', error);
+                    console.error('错误详情:', {
+                        message: error.message,
+                        stack: error.stack,
+                        name: error.name
+                    });
+                    alert('证书图片上传失败: ' + error.message);
+                }
+            };
+            input.click();
+        }
+
+        // 奖项附件上传功能（支持多文件）
+        async function selectAndUploadAwardAttachments() {
+            console.log('开始附件上传流程...');
+            
+            // 检查用户是否已登录
+            if (!currentUser) {
+                alert('请先登录');
+                return;
+            }
+            
+            // 使用 StorageManager 获取最佳可用的项目文件存储桶
+            const bucket = await window.storageManager.getBestProjectBucket();
+            if (!bucket) {
+                const availableBuckets = await window.storageManager.getAvailableBuckets();
+                alert(`没有可用的项目文件存储桶。\n\n可用的存储桶: ${availableBuckets.join(', ')}\n\n请检查存储配置或联系管理员。`);
+                return;
+            }
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = 'image/*,.zip,.rar,.7z,.pdf,.doc,.docx';
+            input.onchange = async function() {
+                if (!input.files.length) return;
+                
+                console.log('选择的文件数量:', input.files.length);
+                
+                const attachmentsList = document.getElementById('award-attachments-list');
+                const currentAttachments = JSON.parse(document.getElementById('hidden-award-attachments-url').value || '[]');
+                
+
+                
+                for (let i = 0; i < input.files.length; i++) {
+                    const file = input.files[i];
+                    console.log(`处理文件 ${i + 1}/${input.files.length}:`, file.name, '大小:', file.size, '类型:', file.type);
+                    
+                    // 文件大小检查（50MB限制）
+                    if (file.size > 50 * 1024 * 1024) {
+                        alert(`文件 ${file.name} 大小不能超过50MB`);
+                        continue;
+                    }
+                    
+                    // 生成安全的文件名
+                    const timestamp = Date.now();
+                    const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const filePath = `awards/attachments/${timestamp}_${i}_${safeFileName}`;
+                    
+                    console.log('准备上传到路径:', filePath);
+                    
+                    try {
+                        const { data, error } = await window.supabase.storage
+                            .from(bucket)
+                            .upload(filePath, file, { 
+                                upsert: true,
+                                cacheControl: '3600'
+                            });
+                        
+                        if (error) {
+                            console.error(`附件 ${file.name} 上传失败:`, error);
+                            alert(`附件 ${file.name} 上传失败: ${error.message}`);
+                            continue;
+                        }
+                        
+                        console.log(`附件 ${file.name} 上传成功:`, data);
+                        
+                        const { data: publicUrlData } = window.supabase.storage
+                            .from(bucket)
+                            .getPublicUrl(filePath);
+                        
+                        // 添加到当前附件列表
+                        const attachmentInfo = {
+                            name: file.name,
+                            url: publicUrlData.publicUrl,
+                            type: file.type,
+                            size: file.size
+                        };
+                        currentAttachments.push(attachmentInfo);
+                        
+                        // 显示附件信息
+                        const attachmentDiv = document.createElement('div');
+                        attachmentDiv.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg';
+                        attachmentDiv.innerHTML = `
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-file text-blue-500"></i>
+                                <span class="text-sm text-gray-700">${file.name}</span>
+                            </div>
+                            <button type="button" onclick="removeAttachment(this, ${currentAttachments.length - 1})" 
+                                class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        `;
+                        attachmentsList.appendChild(attachmentDiv);
+                        
+                    } catch (error) {
+                        console.error(`附件 ${file.name} 上传失败:`, error);
+                        console.error('错误详情:', {
+                            message: error.message,
+                            stack: error.stack,
+                            name: error.name
+                        });
+                        alert(`附件 ${file.name} 上传失败: ${error.message}`);
+                    }
+                }
+                
+                // 更新隐藏字段
+                document.getElementById('hidden-award-attachments-url').value = JSON.stringify(currentAttachments);
+                console.log('附件上传流程完成');
+            };
+            input.click();
+        }
+
+        // 移除附件
+        function removeAttachment(button, index) {
+            const attachmentsList = document.getElementById('award-attachments-list');
+            const currentAttachments = JSON.parse(document.getElementById('hidden-award-attachments-url').value || '[]');
+            
+            // 从数组中移除
+            currentAttachments.splice(index, 1);
+            
+            // 更新隐藏字段
+            document.getElementById('hidden-award-attachments-url').value = JSON.stringify(currentAttachments);
+            
+            // 移除DOM元素
+            button.closest('div').remove();
+            
+            // 重新渲染附件列表（因为索引会变化）
+            attachmentsList.innerHTML = '';
+            currentAttachments.forEach((attachment, newIndex) => {
+                const attachmentDiv = document.createElement('div');
+                attachmentDiv.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg';
+                attachmentDiv.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-file text-blue-500"></i>
+                        <span class="text-sm text-gray-700">${attachment.name}</span>
+                    </div>
+                    <button type="button" onclick="removeAttachment(this, ${newIndex})" 
+                        class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                attachmentsList.appendChild(attachmentDiv);
+            });
+        }
+
+        // 工具函数
+        function getSubmissionTypeText(type) {
+            const typeMap = {
+                'project': '项目开发',
+                'competition': '竞赛项目',
+                'research': '研究项目',
+                'other': '其他'
+            };
+            return typeMap[type] || type;
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'submitted': '已提交',
+                'approved': '已通过',
+                'rejected': '已拒绝',
+                'awarded': '已获奖'
+            };
+            return statusMap[status] || status;
+        }
+
+        // 项目操作函数
+        async function viewProject(projectId) {
+            try {
+                const project = projects.find(p => p.id === projectId);
+                if (!project) {
+                    alert('项目不存在');
+                    return;
+                }
+                
+                // 先加载项目成员信息
+                const { data: projectMembers, error: memberError } = await window.supabase
+                    .from('project_members')
+                    .select(`
+                        user_id,
+                        role,
+                        user_profiles!inner (
+                            user_id,
+                            name,
+                            email,
+                            avatar_url
+                        )
+                    `)
+                    .eq('project_id', projectId);
+                
+                if (memberError) {
+                    console.error('加载项目成员失败:', memberError);
+                }
+                
+                const members = projectMembers || [];
+                
+                // 显示项目详情模态框 - 使用与admin.html相同的样式
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <div class="flex justify-between items-start mb-6">
+                                <h2 class="text-2xl font-bold text-gray-800">项目详情</h2>
+                                <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-times text-xl"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- 左侧：项目信息 -->
+                                <div class="space-y-6">
+                                    <!-- 项目基本信息 -->
+                                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
+                                        <h3 class="text-lg font-semibold text-gray-800 mb-3">基本信息</h3>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="text-sm font-medium text-gray-600">项目名称</label>
+                                                <p class="text-gray-800 font-medium">${project.name || '未命名'}</p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-gray-600">项目类别</label>
+                                                <p class="text-gray-800">${project.category || '未分类'}</p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-gray-600">项目描述</label>
+                                                <p class="text-gray-800 mt-1">${project.description || '暂无描述'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 项目资源 -->
+                                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4">
+                                        <h3 class="text-lg font-semibold text-gray-800 mb-3">项目资源</h3>
+                                        <div class="space-y-3">
+                                            ${project.image_url ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">项目图片</label>
+                                                    <div class="mt-1">
+                                                        <img src="${project.image_url}" alt="项目图片" class="w-32 h-32 object-cover rounded-lg border">
+                                                    </div>
+                                                </div>
+                                            ` : '<p class="text-gray-500 text-sm">暂无项目图片</p>'}
+                                            ${project.doc_url ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">项目文档</label>
+                                                    <div class="mt-1">
+                                                        <a href="${project.doc_url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">
+                                                            <i class="fas fa-file-pdf mr-1"></i>查看文档
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                            ${project.ppt_url ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">演示PPT</label>
+                                                    <div class="mt-1">
+                                                        <a href="${project.ppt_url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">
+                                                            <i class="fas fa-file-powerpoint mr-1"></i>查看PPT
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                            ${project.other_attachment_url ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">其他附件</label>
+                                                    <div class="mt-1">
+                                                        <a href="${project.other_attachment_url}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">
+                                                            <i class="fas fa-paperclip mr-1"></i>查看附件
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 项目时间 -->
+                                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4">
+                                        <h3 class="text-lg font-semibold text-gray-800 mb-3">时间信息</h3>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="text-sm font-medium text-gray-600">创建时间</label>
+                                                <p class="text-gray-800">${new Date(project.created_at).toLocaleString('zh-CN')}</p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-gray-600">项目状态</label>
+                                                <p class="text-gray-800">
+                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        <span class="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
+                                                        活跃
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 奖项信息 -->
+                                    ${project.award_level || project.award_name || project.certificate_image_url ? `
+                                    <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4">
+                                        <h3 class="text-lg font-semibold text-gray-800 mb-3">奖项信息</h3>
+                                        <div class="space-y-3">
+                                            ${project.award_level ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">奖项级别</label>
+                                                    <p class="text-gray-800">
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                            ${project.award_level === 'national' ? '国家级' : 
+                                                              project.award_level === 'provincial' ? '省级' : 
+                                                              project.award_level === 'school' ? '校级' : '其他'}
+                                                        </span>
+                                                    </p>
+                                                </div>
+                                            ` : ''}
+                                            ${project.award_name ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">奖项名称</label>
+                                                    <p class="text-gray-800 font-medium">${project.award_name}</p>
+                                                </div>
+                                            ` : ''}
+                                            ${project.award_date ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">获奖日期</label>
+                                                    <p class="text-gray-800">${new Date(project.award_date).toLocaleDateString('zh-CN')}</p>
+                                                </div>
+                                            ` : ''}
+                                            ${project.certificate_image_url ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">证书图片</label>
+                                                    <div class="mt-1">
+                                                        <img src="${project.certificate_image_url}" alt="证书图片" class="w-32 h-32 object-cover rounded-lg border">
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                            ${project.award_attachments_url ? `
+                                                <div>
+                                                    <label class="text-sm font-medium text-gray-600">比赛过程附件</label>
+                                                    <div class="mt-2 space-y-2">
+                                                        ${JSON.parse(project.award_attachments_url).map(attachment => `
+                                                            <div class="flex items-center justify-between p-2 bg-white rounded border">
+                                                                <div class="flex items-center space-x-2">
+                                                                    <i class="fas fa-file text-blue-500"></i>
+                                                                    <span class="text-sm text-gray-700">${attachment.name}</span>
+                                                                </div>
+                                                                <a href="${attachment.url}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">
+                                                                    <i class="fas fa-external-link-alt"></i>
+                                                                </a>
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                                
+                                <!-- 右侧：项目成员展示 -->
+                                <div class="space-y-6">
+                                    <div class="bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-4">
+                                        <div class="flex justify-between items-center mb-4">
+                                            <h3 class="text-lg font-semibold text-gray-800">项目成员</h3>
+                                        </div>
+                                        
+                                        <div class="space-y-3">
+                                            ${members.length > 0 ? members.map(member => `
+                                                <div class="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                                    <div class="flex items-center space-x-3">
+                                                        ${member.user_profiles?.avatar_url ? `
+                                                            <img src="${member.user_profiles.avatar_url}" alt="${member.user_profiles.name || '用户'}" 
+                                                                class="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                            <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm" style="display: none;">
+                                                                ${member.user_profiles.name ? member.user_profiles.name.charAt(0).toUpperCase() : 'U'}
+                                                            </div>
+                                                        ` : `
+                                                            <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                                                ${member.user_profiles?.name ? member.user_profiles.name.charAt(0).toUpperCase() : 'U'}
+                                                            </div>
+                                                        `}
+                                                        <div>
+                                                            <p class="font-medium text-gray-800">${member.user_profiles?.name || '未知用户'}</p>
+                                                            <p class="text-sm text-gray-500">${member.user_profiles?.email || '无邮箱'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex items-center space-x-2">
+                                                        <span class="px-2 py-1 text-xs font-medium rounded-full ${
+                                                            member.role === 'owner' ? 'bg-red-100 text-red-800' :
+                                                            member.role === 'manager' ? 'bg-blue-100 text-blue-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                        }">
+                                                            ${member.role === 'owner' ? '负责人' : 
+                                                              member.role === 'manager' ? '管理员' : '成员'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            `).join('') : '<p class="text-gray-500 text-center py-4">暂无项目成员</p>'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+                                <button onclick="this.closest('.fixed').remove()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                                    关闭
+                                </button>
+                                ${project.owner_id === currentUser.id ? `
+                                    <button onclick="editProject(${project.id}); this.closest('.fixed').remove()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                        <i class="fas fa-edit mr-1"></i>编辑项目
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('查看项目失败:', error);
+                alert('查看项目失败，请重试');
+            }
+        }
+
+        async function editProject(projectId) {
+            try {
+                console.log('开始编辑项目:', projectId);
+                
+                // 调用调试函数
+                if (window.debugEditProject) {
+                    window.debugEditProject(projectId);
+                }
+                
+                const project = projects.find(p => p.id === projectId);
+                if (!project) {
+                    alert('项目不存在');
+                    return;
+                }
+                
+                console.log('找到项目:', project);
+                console.log('当前用户ID:', currentUser.id);
+                console.log('项目负责人ID:', project.owner_id);
+                
+                if (project.owner_id !== currentUser.id) {
+                    alert('只有项目负责人可以编辑项目');
+                    return;
+                }
+                
+                // 设置编辑模式
+                window.editingProjectId = projectId;
+                console.log('设置编辑模式，项目ID:', window.editingProjectId);
+                
+                // 先显示模态框并加载用户列表
+                console.log('准备显示模态框...');
+                await showSubmitProjectModal(true);
+                console.log('模态框已显示');
+                
+                // 使用更可靠的方式等待DOM加载完成
+                const waitForElements = () => {
+                    return new Promise((resolve) => {
+                        const checkElements = () => {
+                            const nameInput = document.querySelector('input[name="name"]');
+                            const descTextarea = document.querySelector('textarea[name="description"]');
+                            const categoryInput = document.querySelector('input[name="category"]');
+                            const ownerSelect = document.getElementById('owner-select');
+                            
+                            if (nameInput && descTextarea && categoryInput && ownerSelect) {
+                                resolve();
+                            } else {
+                                setTimeout(checkElements, 50);
+                            }
+                        };
+                        checkElements();
+                    });
+                };
+                
+                await waitForElements();
+                console.log('DOM元素已加载完成，开始填充表单数据');
+                
+                try {
+                    // 填充表单数据
+                    const nameInput = document.querySelector('input[name="name"]');
+                    const descTextarea = document.querySelector('textarea[name="description"]');
+                    const categoryInput = document.querySelector('input[name="category"]');
+                    const ownerSelect = document.getElementById('owner-select');
+                    
+                    console.log('表单元素:', { 
+                        nameInput: !!nameInput, 
+                        descTextarea: !!descTextarea, 
+                        categoryInput: !!categoryInput, 
+                        ownerSelect: !!ownerSelect 
+                    });
+                    
+                    if (nameInput) {
+                        nameInput.value = project.name;
+                        console.log('设置项目名称:', project.name);
+                        console.log('验证名称字段值:', nameInput.value);
+                    }
+                    if (descTextarea) {
+                        descTextarea.value = project.description;
+                        console.log('设置项目描述:', project.description);
+                        console.log('验证描述字段值:', descTextarea.value);
+                    }
+                    if (categoryInput) {
+                        categoryInput.value = project.category || '';
+                        console.log('设置项目类别:', project.category || '');
+                        console.log('验证类别字段值:', categoryInput.value);
+                    }
+                    if (ownerSelect) {
+                        ownerSelect.value = project.owner_id;
+                        console.log('设置项目负责人:', project.owner_id);
+                        console.log('验证负责人字段值:', ownerSelect.value);
+                    }
+                    
+                    // 设置隐藏字段
+                    const hiddenImageUrl = document.getElementById('hidden-image-url');
+                    const hiddenDocUrl = document.getElementById('hidden-doc-url');
+                    const hiddenPptUrl = document.getElementById('hidden-ppt-url');
+                    const hiddenOtherUrl = document.getElementById('hidden-other-attachment-url');
+                    
+                    if (hiddenImageUrl) hiddenImageUrl.value = project.image_url || '';
+                    if (hiddenDocUrl) hiddenDocUrl.value = project.doc_url || '';
+                    if (hiddenPptUrl) hiddenPptUrl.value = project.ppt_url || '';
+                    if (hiddenOtherUrl) hiddenOtherUrl.value = project.other_attachment_url || '';
+                    
+                    // 显示文件URL
+                    const imageUrlDisplay = document.getElementById('project-image-url');
+                    const docUrlDisplay = document.getElementById('project-doc-url');
+                    const pptUrlDisplay = document.getElementById('project-ppt-url');
+                    const otherUrlDisplay = document.getElementById('project-other-url');
+                    
+                    if (project.image_url && imageUrlDisplay) imageUrlDisplay.textContent = '图片已上传';
+                    if (project.doc_url && docUrlDisplay) docUrlDisplay.textContent = '文档已上传';
+                    if (project.ppt_url && pptUrlDisplay) pptUrlDisplay.textContent = 'PPT已上传';
+                    if (project.other_attachment_url && otherUrlDisplay) otherUrlDisplay.textContent = '附件已上传';
+                    
+                    // 清空邀请列表（编辑模式下不需要邀请新成员）
+                    const inviteList = document.getElementById('invite-members-list');
+                    if (inviteList) inviteList.innerHTML = '';
+                    
+                    console.log('表单数据填充完成');
+                } catch (fillError) {
+                    console.error('填充表单数据时出错:', fillError);
+                    alert('填充表单数据失败: ' + fillError.message);
+                }
+                
+            } catch (error) {
+                console.error('编辑项目失败:', error);
+                console.error('错误详情:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                alert('编辑项目失败: ' + error.message);
+            }
+        }
+
+        async function deleteProject(projectId) {
+            try {
+                const project = projects.find(p => p.id === projectId);
+                if (!project) {
+                    alert('项目不存在');
+                    return;
+                }
+                
+                if (project.owner_id !== currentUser.id) {
+                    alert('只有项目负责人可以删除项目');
+                    return;
+                }
+                
+                if (!confirm(`确定要删除项目"${project.name}"吗？此操作不可恢复。`)) {
+                    return;
+                }
+                
+                // 创建项目删除消息通知
+                await createProjectUpdateNotification(projectId, 'deleted');
+                
+                const { error } = await window.supabase
+                    .from('projects')
+                    .delete()
+                    .eq('id', projectId);
+                
+                if (error) {
+                    console.error('删除项目失败:', error);
+                    alert('删除失败: ' + error.message);
+                    return;
+                }
+                
+                alert('项目删除成功！');
+                await loadProjects();
+                await loadMessages();
+                updateStatistics();
+                
+            } catch (error) {
+                console.error('删除项目失败:', error);
+                alert('删除失败，请重试');
+            }
+        }
+
+        // 简化的存储诊断函数
+        window.diagnoseStorageIssue = async function() {
+            console.log('=== 开始存储问题诊断 ===');
+            
+            try {
+                // 使用存储管理器进行诊断
+                const result = await window.storageManager.diagnoseStorage();
+                
+                if (result.success) {
+                    console.log('✅ 存储诊断成功');
+                    alert(`✅ 存储功能诊断成功！\n\n项目文件存储桶: ${result.projectBucket}\n可用存储桶: ${result.availableBuckets.join(', ')}`);
+                } else {
+                    console.error('❌ 存储诊断失败:', result.error);
+                    
+                    if (result.availableBuckets && result.availableBuckets.length > 0) {
+                        const availableBuckets = result.availableBuckets.join(', ');
+                        alert(`❌ 存储诊断失败\n\n错误: ${result.error}\n\n可用的存储桶: ${availableBuckets}\n\n建议:\n1. 使用现有的存储桶\n2. 联系管理员创建project-files存储桶\n3. 修改storage-config.js中的配置`);
+                    } else {
+                        alert(`❌ 存储诊断失败\n\n错误: ${result.error}\n\n建议:\n1. 检查Supabase Storage是否已启用\n2. 检查存储桶权限设置\n3. 联系管理员配置存储服务`);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('❌ 存储诊断异常:', error);
+                alert('❌ 存储诊断异常: ' + error.message);
+            }
+        };
+
+                // 存储功能测试函数
+        window.testStorageFunction = async function() {
+            console.log('=== 开始存储功能测试 ===');
+            
+            try {
+                // 使用存储管理器进行测试
+                const result = await window.storageManager.diagnoseStorage();
+                
+                if (result.success) {
+                    console.log('✅ 存储功能测试成功');
+                    alert(`✅ 存储功能测试成功！\n\n项目文件存储桶: ${result.projectBucket}\n可用存储桶: ${result.availableBuckets.join(', ')}\n\n所有功能正常，可以正常使用文件上传功能。`);
+                } else {
+                    console.error('❌ 存储功能测试失败:', result.error);
+                    
+                    if (result.availableBuckets && result.availableBuckets.length > 0) {
+                        const availableBuckets = result.availableBuckets.join(', ');
+                        alert(`❌ 存储功能测试失败\n\n错误: ${result.error}\n\n可用的存储桶: ${availableBuckets}\n\n建议:\n1. 使用现有的存储桶\n2. 联系管理员创建project-files存储桶\n3. 修改storage-config.js中的配置`);
+                    } else {
+                        alert(`❌ 存储功能测试失败\n\n错误: ${result.error}\n\n建议:\n1. 检查Supabase Storage是否已启用\n2. 检查存储桶权限设置\n3. 联系管理员配置存储服务`);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('❌ 存储功能测试异常:', error);
+                alert('❌ 存储功能测试异常: ' + error.message);
+            }
+        };
+
+        // 测试存储桶访问权限
+        window.testStorageAccess = async function() {
+            console.log('=== 测试存储桶访问权限 ===');
+            
+            try {
+                // 检查用户登录
+                if (!currentUser) {
+                    alert('请先登录');
+                    return;
+                }
+                
+                console.log('当前用户:', currentUser.email);
+                
+                // 测试获取存储桶列表
+                console.log('测试获取存储桶列表...');
+                const { data: buckets, error: bucketError } = await window.supabase.storage.listBuckets();
+                
+                if (bucketError) {
+                    console.error('获取存储桶列表失败:', bucketError);
+                    alert('获取存储桶列表失败: ' + bucketError.message);
+                    return;
+                }
+                
+                console.log('存储桶列表:', buckets);
+                const bucketNames = buckets.map(b => b.name);
+                
+                // 测试 project-files 存储桶
+                console.log('测试 project-files 存储桶...');
+                let projectFilesOk = false;
+                try {
+                    const { data: projectFiles, error: projectError } = await window.supabase.storage
+                        .from('project-files')
+                        .list('', { limit: 1 });
+                    
+                    if (projectError) {
+                        console.error('project-files 访问失败:', projectError);
+                    } else {
+                        console.log('project-files 访问成功:', projectFiles);
+                        projectFilesOk = true;
+                    }
+                } catch (error) {
+                    console.error('project-files 测试异常:', error);
+                }
+                
+                // 测试 tyjk-files 存储桶
+                console.log('测试 tyjk-files 存储桶...');
+                let tyjkFilesOk = false;
+                try {
+                    const { data: tyjkFiles, error: tyjkError } = await window.supabase.storage
+                        .from('tyjk-files')
+                        .list('', { limit: 1 });
+                    
+                    if (tyjkError) {
+                        console.error('tyjk-files 访问失败:', tyjkError);
+                    } else {
+                        console.log('tyjk-files 访问成功:', tyjkFiles);
+                        tyjkFilesOk = true;
+                    }
+                } catch (error) {
+                    console.error('tyjk-files 测试异常:', error);
+                }
+                
+                // 显示测试结果
+                let resultMessage = `🔍 存储桶访问测试结果\n\n`;
+                resultMessage += `📋 检测到的存储桶: ${bucketNames.join(', ')}\n\n`;
+                
+                if (projectFilesOk) {
+                    resultMessage += `✅ project-files: 访问正常\n`;
+                } else {
+                    resultMessage += `❌ project-files: 访问失败\n`;
+                }
+                
+                if (tyjkFilesOk) {
+                    resultMessage += `✅ tyjk-files: 访问正常\n`;
+                } else {
+                    resultMessage += `❌ tyjk-files: 访问失败\n`;
+                }
+                
+                if (projectFilesOk && tyjkFilesOk) {
+                    resultMessage += `\n🎉 所有存储桶访问正常！`;
+                } else if (projectFilesOk) {
+                    resultMessage += `\n⚠️ 建议使用 project-files 存储桶`;
+                } else if (tyjkFilesOk) {
+                    resultMessage += `\n⚠️ 建议使用 tyjk-files 存储桶`;
+                } else {
+                    resultMessage += `\n❌ 所有存储桶访问失败，请检查权限设置`;
+                }
+                
+                alert(resultMessage);
+                
+            } catch (error) {
+                console.error('测试存储桶访问失败:', error);
+                alert('❌ 测试存储桶访问失败: ' + error.message);
+            }
+        };
+
+        // 快速修复存储配置
+        window.quickFixStorage = async function() {
+            console.log('=== 快速修复存储配置 ===');
+            
+            try {
+                // 检查用户登录
+                if (!currentUser) {
+                    alert('请先登录');
+                    return;
+                }
+                
+                // 检测可用存储桶
+                const { data: buckets, error: bucketError } = await window.supabase.storage.listBuckets();
+                
+                if (bucketError) {
+                    console.error('获取存储桶列表失败:', bucketError);
+                    alert('获取存储桶列表失败: ' + bucketError.message);
+                    return;
+                }
+                
+                const availableBuckets = buckets.map(b => b.name);
+                console.log('可用存储桶:', availableBuckets);
+                
+                if (availableBuckets.length === 0) {
+                    alert('❌ 未检测到任何可用的存储桶\n\n请检查：\n1. Supabase Storage 是否已启用\n2. 网络连接是否正常\n3. API 密钥是否正确');
+                    return;
+                }
+                
+                // 查找最佳存储桶
+                let bestBucket = null;
+                
+                // 优先选择 tyjk-files（如果存在）
+                if (availableBuckets.includes('tyjk-files')) {
+                    bestBucket = 'tyjk-files';
+                }
+                // 其次选择 project-files（如果存在）
+                else if (availableBuckets.includes('project-files')) {
+                    bestBucket = 'project-files';
+                }
+                // 最后选择第一个可用的存储桶
+                else {
+                    bestBucket = availableBuckets[0];
+                }
+                
+                // 生成修复建议
+                const fixMessage = `✅ 存储桶配置快速修复建议
+
+📋 检测结果：
+- 可用存储桶: ${availableBuckets.join(', ')}
+- 推荐存储桶: ${bestBucket}
+
+📝 修复步骤：
+1. 打开 storage-config.js 文件
+2. 将 projectFiles 配置改为: '${bestBucket}'
+3. 保存文件并刷新页面
+
+🔧 快速修复代码：
+\`\`\`javascript
+const STORAGE_CONFIG = {
+    buckets: {
+        projectFiles: '${bestBucket}',
+        userFiles: '${bestBucket}',
+        fallback: '${bestBucket}'
+    }
+};
+\`\`\`
+
+⚠️ 注意事项：
+- 修改配置前请备份原文件
+- 确保存储桶权限设置正确
+- 修改后重新运行诊断功能`;
+
+                alert(fixMessage);
+                
+                // 询问是否要自动应用修复
+                const shouldApply = confirm('是否要自动应用修复配置？\n\n这将修改 storage-config.js 文件中的存储桶配置。');
+                
+                if (shouldApply) {
+                    // 这里可以添加自动修改配置文件的逻辑
+                    console.log('用户选择自动应用修复配置');
+                    alert('自动修复功能正在开发中，请手动修改 storage-config.js 文件。');
+                }
+                
+            } catch (error) {
+                console.error('快速修复失败:', error);
+                alert('❌ 快速修复失败: ' + error.message);
+            }
+        };
+
+        // 奖励统计相关函数
+        let awardProjects = []; // 存储奖励项目数据
+
+        // 显示奖励统计界面
+        function showAwardStatistics() {
+            document.getElementById('award-statistics-section').classList.remove('hidden');
+            loadAwardStatistics();
+        }
+
+        // 隐藏奖励统计界面
+        function hideAwardStatistics() {
+            document.getElementById('award-statistics-section').classList.add('hidden');
+        }
+
+        // 刷新奖励统计数据
+        async function refreshAwardStatistics() {
+            try {
+                // 显示加载状态
+                const container = document.getElementById('award-projects-container');
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center">
+                            <div class="flex items-center justify-center">
+                                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
+                                <span class="ml-3 text-gray-600">刷新奖励数据...</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                
+                // 重新加载数据
+                await loadAwardStatistics();
+                
+                // 显示成功提示
+                showToast('奖励统计数据已刷新', 'success');
+            } catch (error) {
+                console.error('刷新奖励统计数据失败:', error);
+                showToast('刷新失败，请重试', 'error');
+            }
+        }
+
+        // 加载奖励统计数据
+        async function loadAwardStatistics() {
+            try {
+                console.log('开始加载奖励统计数据...');
+                
+                // 首先获取当前用户参与的所有项目ID（包括作为成员的项目）
+                const { data: userProjects, error: userProjectsError } = await window.supabase
+                    .from('project_members')
+                    .select('project_id')
+                    .eq('user_id', currentUser.id)
+                    .eq('status', 'active');
+
+                if (userProjectsError) {
+                    console.error('获取用户项目失败:', userProjectsError);
+                    alert('获取用户项目失败，请重试');
+                    return;
+                }
+
+                const userProjectIds = userProjects.map(p => p.project_id);
+                console.log('用户参与的项目ID:', userProjectIds);
+
+                if (userProjectIds.length === 0) {
+                    // 用户没有参与任何项目
+                    awardProjects = [];
+                    updateAwardStatistics([]);
+                    displayAwardProjects([]);
+                    return;
+                }
+
+                // 获取用户参与的项目中申请了奖项的项目
+                const { data: projects, error } = await window.supabase
+                    .from('projects')
+                    .select(`
+                        id,
+                        name,
+                        description,
+                        category,
+                        award_level,
+                        award_name,
+                        award_date,
+                        certificate_image_url,
+                        award_attachments_url,
+                        created_at,
+                        owner_id
+                    `)
+                    .in('id', userProjectIds)
+                    .not('award_level', 'is', null)
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('加载奖励项目失败:', error);
+                    alert('加载奖励数据失败，请重试');
+                    return;
+                }
+
+                // 获取项目负责人的用户信息
+                const ownerIds = [...new Set(projects.map(p => p.owner_id))];
+                const { data: userProfiles, error: userError } = await window.supabase
+                    .from('user_profiles')
+                    .select('user_id, name, email')
+                    .in('user_id', ownerIds);
+
+                if (userError) {
+                    console.error('加载用户信息失败:', userError);
+                }
+
+                // 合并项目数据和用户信息
+                const projectsWithUsers = projects.map(project => ({
+                    ...project,
+                    user_profiles: userProfiles?.find(up => up.user_id === project.owner_id) || null
+                }));
+
+                awardProjects = projectsWithUsers || [];
+                console.log('奖励项目数据:', awardProjects);
+
+                // 更新统计概览
+                updateAwardStatistics(awardProjects);
+                
+                // 更新项目列表
+                displayAwardProjects(awardProjects);
+
+            } catch (error) {
+                console.error('加载奖励统计失败:', error);
+                alert('加载奖励统计失败，请重试');
+            }
+        }
+
+        // 更新奖励统计概览
+        function updateAwardStatistics(projects) {
+            const totalAwards = projects.length;
+            const nationalAwards = projects.filter(p => p.award_level === 'national').length;
+            const provincialAwards = projects.filter(p => p.award_level === 'provincial').length;
+            const schoolAwards = projects.filter(p => p.award_level === 'school').length;
+
+            document.getElementById('total-awards').textContent = totalAwards;
+            document.getElementById('national-awards').textContent = nationalAwards;
+            document.getElementById('provincial-awards').textContent = provincialAwards;
+            document.getElementById('school-awards').textContent = schoolAwards;
+        }
+
+        // 显示奖励项目列表
+        function displayAwardProjects(projects) {
+            const container = document.getElementById('award-projects-container');
+            
+            if (!projects || projects.length === 0) {
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center">
+                            <div class="text-gray-500">
+                                <i class="fas fa-trophy text-4xl mb-4"></i>
+                                <p>暂无奖励申请记录</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            container.innerHTML = projects.map(project => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-12 w-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-project-diagram text-white"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">${project.name}</div>
+                                <div class="text-sm text-gray-500">${project.category || '未分类'}</div>
+                                <div class="text-xs text-gray-400">负责人: ${project.user_profiles?.name || '未知'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm">
+                            <div class="font-medium text-gray-900">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    project.award_level === 'national' ? 'bg-red-100 text-red-800' :
+                                    project.award_level === 'provincial' ? 'bg-blue-100 text-blue-800' :
+                                    project.award_level === 'school' ? 'bg-purple-100 text-purple-800' :
+                                    'bg-gray-100 text-gray-800'
+                                }">
+                                    ${getAwardLevelText(project.award_level)}
+                                </span>
+                            </div>
+                            <div class="text-gray-500 mt-1">${project.award_name || '未设置奖项名称'}</div>
+                            ${project.award_date ? `<div class="text-xs text-gray-400">${new Date(project.award_date).toLocaleDateString()}</div>` : ''}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm">
+                            ${project.certificate_image_url ? 
+                                `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check mr-1"></i>已上传证书
+                                </span>` :
+                                `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>未上传证书
+                                </span>`
+                            }
+                            ${project.award_attachments_url ? 
+                                `<div class="mt-1">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <i class="fas fa-paperclip mr-1"></i>有附件
+                                    </span>
+                                </div>` : ''
+                            }
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">
+                        ${new Date(project.created_at).toLocaleDateString()}
+                    </td>
+                    <td class="px-6 py-4 text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <button onclick="viewAwardProject(${project.id})" class="text-blue-600 hover:text-blue-900">
+                                <i class="fas fa-eye mr-1"></i>查看
+                            </button>
+                            ${project.owner_id === currentUser.id ? `
+                                <button onclick="editAwardProject(${project.id})" class="text-green-600 hover:text-green-900">
+                                    <i class="fas fa-edit mr-1"></i>编辑
+                                </button>
+                                <button onclick="deleteAwardProject(${project.id})" class="text-red-600 hover:text-red-900">
+                                    <i class="fas fa-trash mr-1"></i>删除
+                                </button>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 查看奖励项目详情
+        async function viewAwardProject(projectId) {
+            try {
+                const project = awardProjects.find(p => p.id === projectId);
+                if (!project) {
+                    alert('项目不存在');
+                    return;
+                }
+
+                // 创建模态框显示项目详情
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                            <h3 class="text-xl font-semibold text-gray-900">奖励项目详情</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- 左侧：项目信息 -->
+                                <div class="space-y-4">
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <h4 class="font-semibold text-gray-900 mb-3">项目基本信息</h4>
+                                        <div class="space-y-2 text-sm">
+                                            <div><span class="font-medium">项目名称:</span> ${project.name}</div>
+                                            <div><span class="font-medium">项目类别:</span> ${project.category || '未分类'}</div>
+                                            <div><span class="font-medium">项目描述:</span> ${project.description || '无描述'}</div>
+                                            <div><span class="font-medium">负责人:</span> ${project.user_profiles?.name || '未知'}</div>
+                                            <div><span class="font-medium">申请时间:</span> ${new Date(project.created_at).toLocaleString()}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="bg-yellow-50 rounded-lg p-4">
+                                        <h4 class="font-semibold text-gray-900 mb-3">奖项信息</h4>
+                                        <div class="space-y-2 text-sm">
+                                            <div><span class="font-medium">奖项级别:</span> 
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                    project.award_level === 'national' ? 'bg-red-100 text-red-800' :
+                                                    project.award_level === 'provincial' ? 'bg-blue-100 text-blue-800' :
+                                                    project.award_level === 'school' ? 'bg-purple-100 text-purple-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                                }">
+                                                    ${getAwardLevelText(project.award_level)}
+                                                </span>
+                                            </div>
+                                            <div><span class="font-medium">奖项名称:</span> ${project.award_name || '未设置'}</div>
+                                            ${project.award_date ? `<div><span class="font-medium">获奖日期:</span> ${new Date(project.award_date).toLocaleDateString()}</div>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 右侧：证书和附件 -->
+                                <div class="space-y-4">
+                                    <div class="bg-green-50 rounded-lg p-4">
+                                        <h4 class="font-semibold text-gray-900 mb-3">证书状态</h4>
+                                        ${project.certificate_image_url ? `
+                                            <div class="space-y-2">
+                                                <div class="text-sm text-green-700">
+                                                    <i class="fas fa-check-circle mr-2"></i>证书已上传
+                                                </div>
+                                                <div class="bg-white rounded-lg p-3 border">
+                                                    <img src="${project.certificate_image_url}" alt="证书图片" 
+                                                         class="w-full h-auto rounded-lg max-h-48 object-cover">
+                                                </div>
+                                            </div>
+                                        ` : `
+                                            <div class="text-sm text-yellow-700">
+                                                <i class="fas fa-exclamation-triangle mr-2"></i>证书未上传
+                                            </div>
+                                        `}
+                                    </div>
+                                    
+                                    ${project.award_attachments_url ? `
+                                        <div class="bg-blue-50 rounded-lg p-4">
+                                            <h4 class="font-semibold text-gray-900 mb-3">附件</h4>
+                                            <div class="text-sm">
+                                                <a href="${project.award_attachments_url}" target="_blank" 
+                                                   class="inline-flex items-center text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-paperclip mr-2"></i>查看附件
+                                                </a>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                // 点击背景关闭模态框
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                });
+
+            } catch (error) {
+                console.error('查看奖励项目失败:', error);
+                alert('查看项目详情失败，请重试');
+            }
+        }
+
+        // 编辑奖励项目
+        function editAwardProject(projectId) {
+            // 跳转到项目编辑页面或打开编辑模态框
+            const project = awardProjects.find(p => p.id === projectId);
+            if (project) {
+                // 这里可以打开项目编辑模态框
+                alert('编辑功能正在开发中，请使用项目管理界面的编辑功能');
+            }
+        }
+
+        // 删除奖励项目
+        async function deleteAwardProject(projectId) {
+            try {
+                const project = awardProjects.find(p => p.id === projectId);
+                if (!project) {
+                    alert('项目不存在');
+                    return;
+                }
+
+                const confirmDelete = confirm(`确定要删除项目"${project.name}"的奖项申请吗？\n\n此操作不可撤销！`);
+                if (!confirmDelete) {
+                    return;
+                }
+
+                // 清除奖项信息
+                const { error } = await window.supabase
+                    .from('projects')
+                    .update({
+                        award_level: null,
+                        award_name: null,
+                        award_date: null,
+                        certificate_image_url: null,
+                        award_attachments_url: null
+                    })
+                    .eq('id', projectId)
+                    .eq('owner_id', currentUser.id);
+
+                if (error) {
+                    console.error('删除奖项申请失败:', error);
+                    alert('删除失败，请重试');
+                    return;
+                }
+
+                alert('奖项申请已删除');
+                await loadAwardStatistics(); // 重新加载数据
+
+            } catch (error) {
+                console.error('删除奖励项目失败:', error);
+                alert('删除失败，请重试');
+            }
+        }
+
+        // 显示提示消息
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            // 设置消息内容
+            toastMessage.textContent = message;
+
+            // 设置图标和样式
+            toastIcon.className = '';
+            toast.className = 'fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 flex items-center z-50';
+            
+            switch (type) {
+                case 'success':
+                    toast.classList.add('bg-green-500', 'text-white');
+                    toastIcon.classList.add('fas', 'fa-check-circle');
+                    break;
+                case 'error':
+                    toast.classList.add('bg-red-500', 'text-white');
+                    toastIcon.classList.add('fas', 'fa-exclamation-circle');
+                    break;
+                case 'warning':
+                    toast.classList.add('bg-yellow-500', 'text-white');
+                    toastIcon.classList.add('fas', 'fa-exclamation-triangle');
+                    break;
+                case 'info':
+                default:
+                    toast.classList.add('bg-blue-500', 'text-white');
+                    toastIcon.classList.add('fas', 'fa-info-circle');
+                    break;
+            }
+
+            // 显示提示框
+            toast.classList.remove('translate-x-full');
+            toast.classList.add('translate-x-0');
+
+            // 3秒后自动隐藏
+            setTimeout(function() {
+                toast.classList.remove('translate-x-0');
+                toast.classList.add('translate-x-full');
+            }, 3000);
+        }
+
+        // 将函数暴露到全局作用域
+        window.showAwardStatistics = showAwardStatistics;
+        window.hideAwardStatistics = hideAwardStatistics;
+        window.refreshAwardStatistics = refreshAwardStatistics;
+        window.viewAwardProject = viewAwardProject;
+        window.editAwardProject = editAwardProject;
+        window.deleteAwardProject = deleteAwardProject;
+    </script>
+</body>
+</html> 
